@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-only
-# AURORA for the FM-1: an installable package (aurora.fwsc, identity FM-1_944) built with GR!MM's build system.
+# AURORA for the FM-1: an installable package (aurora.fwsc) built with GR!MM's build system.
 #   tools/build_fwsc.sh [X.Y]          -> build/aurora.fwsc, or build/aurora-X.Y.fwsc with the version X.Y
 #   GRIMM            a checkout of github.com/GRiMMBIENT/grimm (default: cloned into build/grimm at GRIMM_REF)
 #   GRIMM_REF        the GR!MM commit to build on (the one AURORA was checked against)
@@ -12,6 +12,7 @@ set -e
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 VER="$1"
+AURORA_ID="FM-1_9441126"                        # the package identity: AURORA's own (the hub tells firmwares apart by it)
 GRIMM_REF="${GRIMM_REF:-b519acbee7dbdb3e0fb82b15b86a913898c6f8f5}"
 export JIELI_TOOLCHAIN="${JIELI_TOOLCHAIN:-$HOME/.jieli/toolchain}"
 export AC79_SDK="${AC79_SDK:-$HOME/fw-AC79_AIoT_SDK}"
@@ -43,11 +44,11 @@ PY
 
 # AURORA in place of GR!MM's main file (aurora.c includes GR!MM's platform.c, dsp.c and hall.c, unchanged)
 cp firmware/src/aurora.c "$GRIMM/firmware/src/aurora.c"
-python3 - "$GRIMM/tools/build.py" <<'PY'
+python3 - "$GRIMM/tools/build.py" "$AURORA_ID" <<'PY'
 import sys
-p = sys.argv[1]; s = open(p).read()
+p, ident = sys.argv[1], sys.argv[2]; s = open(p).read()
 for a, b in (('FW / "src" / "grimm.c"', 'FW / "src" / "aurora.c"'), ('DEFAULT_VERSION = "2.0"', 'DEFAULT_VERSION = "1.0"'),
-             ('PRODUCT = "FM-1_966"', 'PRODUCT = "FM-1_944"')):   # (AURORA's own package identity, not GR!MM's)
+             ('PRODUCT = "FM-1_966"', 'PRODUCT = "%s"' % ident)):   # (AURORA's own package identity, not GR!MM's)
     if a not in s and b not in s:
         sys.exit("build_fwsc: GR!MM's tools/build.py has changed (%s): check GRIMM_REF" % a)
     s = s.replace(a, b)
