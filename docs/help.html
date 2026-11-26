@@ -96,7 +96,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
           <li>Turn <b>ALGORITHM</b> for another scene, <b>SELECT</b> for another scale, <b>PRESETS</b> for another root.</li>
           <li>Press a page button (<b>FX</b>, <b>ENV</b>, <b>EDIT</b>, <b>LFO</b>, <b>GLO</b>, <b>SEQ</b>) and turn <b>KNOB 1–4</b>; <b>HOME</b> brings back the sky alone.</li>
           <li>Play the keys; tap <b>SCL</b> to latch notes (HOLD) or strike bells (BELLS).</li>
-          <li><b>REC</b> freezes it, <b>ARP</b> drops a fall of bells, <b>SAVE</b> keeps it for next time.</li>
+          <li><b>REC</b> freezes it, <b>ARP</b> starts the drums (hold it for their knobs), <b>SAVE</b> keeps it for next time.</li>
         </ol>
       </div>
       <div class="view" aria-live="polite">
@@ -110,13 +110,13 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
 </header>
 
 <nav class="scroll" aria-label="Sections">
-  <a href="#pages">The seven pages</a><a href="#controls">The other controls</a><a href="#keys">The keys</a><a href="#sky">Freeze, hold, bells</a><a href="#scenes">Scenes and scales</a><a href="#browser">In the browser</a><a href="#install">Install</a>
+  <a href="#pages">The pages</a><a href="#controls">The other controls</a><a href="#keys">The keys</a><a href="#sky">Freeze, hold, drums</a><a href="#scenes">Scenes and scales</a><a href="#browser">In the browser</a><a href="#install">Install</a>
 </nav>
 
 <section class="band" id="pages">
   <div class="wrap">
-    <h2>The seven pages</h2>
-    <p class="note">KNOB 1 to KNOB 4 always turn the four controls of the page that is open; the screen shows their names along the bottom and a bar for each. Each knob runs 0 to 127.</p>
+    <h2>The pages</h2>
+    <p class="note">KNOB 1 to KNOB 4 always turn the four controls of the page that is open; the screen shows their names along the bottom and a bar for each. Each knob runs 0 to 127. The drums' four are under ARP: hold it and turn.</p>
     <div class="pages" id="pagelist"></div>
   </div>
 </section>
@@ -134,8 +134,8 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
         <tr><td>SCL</td><td>Tap: the keys' mode (PADS, HOLD, BELLS). Hold it and press a key: that key becomes the root.</td></tr>
         <tr><td>PLAY</td><td>The machine plays or waits. Waiting, the aurora sinks low; the keys still play.</td></tr>
         <tr><td>REC</td><td>Freeze: the reverb holds what is in it, for ever, and the sky turns to ice.</td></tr>
-        <tr><td>ARP</td><td>A fall of bells from the top of the scale: a shower of shooting stars.</td></tr>
-        <tr><td>SAVE</td><td>Keeps everything (scene, scale, root, octave, key mode, all 28 knobs) as the power-on state. Save while it is quiet: writing the flash stops the sound for a moment.</td></tr>
+        <tr><td>ARP</td><td>Drums. Tap: they start, on a new random 16-step pattern (soft kick, snare, hats, a blip tuned to the scale, all into the reverb), or stop; its light blinks the beat. Hold it and turn KNOB 1–4: TEMPO, LEVEL, BUSY, SWING.</td></tr>
+        <tr><td>SAVE</td><td>Keeps everything (scene, scale, root, octave, key mode, drums on or off, all 32 knobs) as the power-on state. Save while it is quiet: writing the flash stops the sound for a moment.</td></tr>
         <tr><td>MASTER</td><td>The volume.</td></tr>
         <tr><td>MIDI in</td><td>Notes play the pads, as they come (not snapped to the scale).</td></tr>
       </tbody>
@@ -160,12 +160,12 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
 
 <section class="band" id="sky" style="background:var(--bg2)">
   <div class="wrap">
-    <h2>Freeze, hold and a fall of bells</h2>
+    <h2>Freeze, hold and the drums</h2>
     <p class="note">These change the sky on every page, HOME included.</p>
     <div class="grid3">
       <div class="card"><img src="screens/freeze.png" alt="The sky frozen: pale blue curtains, still icy water" loading="lazy"><h3>Freeze (REC)</h3><p>The reverb holds for ever. The curtains slow to a stop and turn pale blue, the water goes still under a sheet of ice with faint cracks, and sparks of frost come and go. FROZEN shows at the top right.</p></div>
       <div class="card"><img src="screens/hold.png" alt="Three pillars of light rising from the horizon" loading="lazy"><h3>Hold (SCL, then keys)</h3><p>Each latched note becomes a pillar of light rising from the horizon at its pitch, twinkling as it goes up, while it rings.</p></div>
-      <div class="card"><img src="screens/shower.png" alt="Shooting stars falling across the aurora" loading="lazy"><h3>A fall of bells (ARP)</h3><p>Six bells fall down the scale. Every one sends shooting stars down the sky and makes the aurora flare and reach lower.</p></div>
+      <div class="card"><img src="screens/drums.png" alt="Rows of lights for the drum pattern over the aurora" loading="lazy"><h3>Drums (ARP)</h3><p>Each kick makes the aurora pulse and reach lower, each snare flares a star (now and then a shooting star), each hat makes a star twinkle. Hold ARP to see the pattern itself.</p></div>
     </div>
   </div>
 </section>
@@ -191,7 +191,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
         <tr><td><kbd>1</kbd>–<kbd>7</kbd></td><td>The pages: sky, effects, pad shape, pad tone, motion, drone, machine</td></tr>
         <tr><td><kbd>Tab</kbd></td><td>SCL: the keys' mode</td></tr>
         <tr><td><kbd>←</kbd> <kbd>→</kbd> · <kbd>↑</kbd> <kbd>↓</kbd></td><td>Scene · scale</td></tr>
-        <tr><td><kbd>Space</kbd> · <kbd>Shift</kbd> · <kbd>Enter</kbd></td><td>Play · freeze · a fall of bells</td></tr>
+        <tr><td><kbd>Space</kbd> · <kbd>Shift</kbd> · <kbd>Enter</kbd></td><td>Play · freeze · drums on or off</td></tr>
       </tbody>
     </table>
   </div>
@@ -247,6 +247,11 @@ const PAGES = [
         ["RANGE", "How high the machine wanders: from one to four octaves of the scale."],
         ["VOICES", "How many pad notes the machine plays at once: 1 to 6."],
         ["ANSWER", "How often a bell is answered by another a step or two up."]] },
+  { btn: "ARP", name: "Drums", img: "drums", held: true, sky: "Hold ARP: the pattern as four rows of lights low in the sky (blips, hats, snare, kick), the step playing in white. Whenever the drums play, kicks pulse the aurora, snares flare a star and hats make stars twinkle.",
+    k: [["TEMPO", "60 to 140 BPM (84 to start)."],
+        ["LEVEL", "How loud the drums are."],
+        ["BUSY", "How full the next pattern is: more kicks, sixteenth hats, ghost snares, blips. It takes effect at the next tap."],
+        ["SWING", "How late the off-beats come."]] },
 ];
 const SCENES = [
   ["Boreal", "D Lydian", "Half saw, half sine", "Green to teal to violet"],
@@ -261,7 +266,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 document.getElementById("pagelist").innerHTML = PAGES.map((p, i) => `
   <article class="pg" id="page-${p.btn.toLowerCase()}">
     <img src="screens/${p.img}.png" alt="The ${esc(p.name)} page on the FM-1's screen" loading="lazy" width="200" height="200">
-    <div><h3><span class="tag">${p.btn}</span>${esc(p.name)}</h3>
+    <div><h3><span class="tag">${p.btn}${p.held ? " held" : ""}</span>${esc(p.name)}</h3>
       <p class="sky-note">${esc(p.sky)}</p>
       <table class="stack"><thead><tr><th>Knob</th><th>Turns</th></tr></thead><tbody>
         ${p.k.map(([n, d], j) => `<tr><td>${j + 1} · ${n}</td><td>${esc(d)}</td></tr>`).join("")}
@@ -272,7 +277,7 @@ document.getElementById("scenelist").innerHTML = SCENES.map((r) => `<tr>${r.map(
 // the panel: knobs, screen, the 2 x 6 grid of buttons, OCT, the keys (positions after the FM-1's)
 const svg = document.getElementById("panel"), NS = "http://www.w3.org/2000/svg";
 const BTNS = [["FX", "EFFECTS", 1], ["SCL", "KEYS"], ["ENV", "SHAPE", 2], ["LFO", "MOTION", 4], ["EDIT", "TONE", 3], ["GLO", "DRONE", 5],
-              ["HOME", "SKY", 0], ["SAVE", "SAVE"], ["ARP", "BELLS"], ["SEQ", "MACHINE", 6], ["PLAY", "PLAY"], ["REC", "FREEZE"]];
+              ["HOME", "SKY", 0], ["SAVE", "SAVE"], ["ARP", "DRUMS", 7], ["SEQ", "MACHINE", 6], ["PLAY", "PLAY"], ["REC", "FREEZE"]];
 let h = "";
 const knob = (x, y, r, a, b) => h += `<g class="knob"><text class="lab" x="${x}" y="${y - r - 18}" text-anchor="middle">${a}</text><text class="lab g" x="${x}" y="${y - r - 6}" text-anchor="middle">${b}</text><circle cx="${x}" cy="${y}" r="${r}"/><line x1="${x}" y1="${y - r + 4}" x2="${x}" y2="${y - r + 11}" stroke="#6ff5a8" stroke-width="2.5" stroke-linecap="round"/></g>`;
 knob(42, 70, 16, "MASTER", "VOLUME"); knob(108, 70, 16, "SELECT", "SCALE"); knob(42, 140, 16, "PRESETS", "ROOT"); knob(108, 140, 16, "ALGORITHM", "SCENE");
@@ -291,7 +296,7 @@ h += `<text class="lab g" x="480" y="216" text-anchor="middle">KEYS: PADS · HOL
 svg.innerHTML = h;
 
 const OTHER = { SCL: ["SCL", "Tap: the keys' mode, PADS, HOLD or BELLS. Hold it and press a key: that key is the root.", "hold"],
-  SAVE: ["SAVE", "Keeps everything as the power-on state.", null], ARP: ["ARP: a fall of bells", "Six bells fall down the scale, and the sky fills with shooting stars.", "shower"],
+  SAVE: ["SAVE", "Keeps everything as the power-on state.", null], 
   PLAY: ["PLAY", "The machine plays or waits. Waiting, the aurora sinks low.", null], REC: ["REC: freeze", "The reverb holds for ever, and the sky turns to ice.", "freeze"],
   "OCT-": ["OCT−", "The register an octave down. With OCT+: the middle.", null], "OCT+": ["OCT+", "The register an octave up. With OCT−: the middle.", null] };
 const img = document.getElementById("v-img"), scr = document.getElementById("p-scr");
@@ -301,7 +306,7 @@ function show(id) {
   let title, what, shot, kn = "";
   if (pg !== undefined) {
     const p = PAGES[+pg];
-    title = `${p.btn} · ${p.name}`; what = p.sky; shot = p.img;
+    title = `${p.btn}${p.held ? " (tap: on / off; hold: knobs)" : ""} · ${p.name}`; what = p.sky; shot = p.img;
     kn = p.k.map(([n, d], j) => `<div><b>${j + 1} · ${n}</b>${esc(d)}</div>`).join("");
   } else { [title, what, shot] = OTHER[id]; }
   document.getElementById("v-title").textContent = title;

@@ -176,10 +176,11 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--edge); border-radius: 
       <dt>GLO · Drone</dt><dd>TONE · FIFTH · SUB · BREATH. Rings rising from the horizon</dd>
       <dt>SEQ · Machine</dt><dd>CHORDS · RANGE · VOICES · ANSWER. The scale as a constellation</dd>
       <dt>SCL tap</dt><dd>the keys: PADS, HOLD (a key latches), BELLS</dd>
-      <dt>Play · Freeze · Bells</dt><dd>the machine plays or waits · the reverb and the sky turn to ice · a shower of falling bells</dd>
+      <dt>ARP · Drums</dt><dd>tap: drums on, with a new random pattern, or off · hold and turn the knobs: TEMPO · LEVEL · BUSY · SWING</dd>
+      <dt>Play · Freeze</dt><dd>the machine plays or waits · the reverb and the sky turn to ice</dd>
       <dt>Save</dt><dd>keep the scene and settings for next time</dd>
     </dl>
-    <p class="desk">Computer keyboard: <kbd>Z</kbd>–<kbd>/</kbd> <kbd>S</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> the keys · <kbd>1</kbd>–<kbd>7</kbd> the pages · <kbd>Tab</kbd> SCL · <kbd>←</kbd> <kbd>→</kbd> scene · <kbd>↑</kbd> <kbd>↓</kbd> scale · <kbd>Space</kbd> play · <kbd>Shift</kbd> freeze · <kbd>Enter</kbd> bells</p>
+    <p class="desk">Computer keyboard: <kbd>Z</kbd>–<kbd>/</kbd> <kbd>S</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> the keys · <kbd>1</kbd>–<kbd>7</kbd> the pages · <kbd>Tab</kbd> SCL · <kbd>←</kbd> <kbd>→</kbd> scene · <kbd>↑</kbd> <kbd>↓</kbd> scale · <kbd>Space</kbd> play · <kbd>Shift</kbd> freeze · <kbd>Enter</kbd> drums</p>
     <p>No sound on an iPhone? Turn the ring/silent switch to ring.</p>
     <p>AURORA is free software (GPL-3.0), built on <a href="https://github.com/GRiMMBIENT/grimm">GR!MM</a>'s platform, DSP and reverb, which stand on Felucca, Dinghy, SLOOP and X0X. The screen font is Terminus (SIL OFL 1.1). Unofficial firmware, not made or endorsed by M-VAVE.</p>
   </section>
@@ -195,12 +196,12 @@ const WORKLET_SRC = __WORKLET_SRC__;
 const BTN = { OCT_DOWN: 0, OCT_UP: 1, FX: 2, SEL: 3, ENV: 4, LFO: 5, EDIT: 6, GLO: 7, HOME: 8, SAVE: 9, ARP: 10, SEQ: 11, PLAY: 12, REC: 13 };
 const ENC = { SELECT: 0, ALGORITHM: 1, KNOB1: 2, PRESETS: 6 };
 const ROWS = [["DENSITY", "BRIGHT", "SPACE", "DRIFT"], ["ECHO", "BELLS", "WIND", "DRONE"], ["ATTACK", "RELEASE", "LENGTH", "PADS"],
-  ["WAVE", "DETUNE", "RESO", "SHIMMER"], ["RATE", "SWEEP", "WIDTH", "TREMOLO"], ["TONE", "FIFTH", "SUB", "BREATH"], ["CHORDS", "RANGE", "VOICES", "ANSWER"]];
+  ["WAVE", "DETUNE", "RESO", "SHIMMER"], ["RATE", "SWEEP", "WIDTH", "TREMOLO"], ["TONE", "FIFTH", "SUB", "BREATH"], ["CHORDS", "RANGE", "VOICES", "ANSWER"], ["TEMPO", "LEVEL", "BUSY", "SWING"]];
 const PAGE_BTN = [BTN.HOME, BTN.FX, BTN.ENV, BTN.EDIT, BTN.LFO, BTN.GLO, BTN.SEQ];   // ROWS[i]: the page this button opens
 const PANEL = [   // label, what the FM-1 prints on that button, id
   ["SKY", "HOME", BTN.HOME], ["EFFECTS", "FX", BTN.FX], ["SHAPE", "ENV", BTN.ENV], ["TONE", "EDIT", BTN.EDIT],
   ["MOTION", "LFO", BTN.LFO], ["DRONE", "GLO", BTN.GLO], ["MACHINE", "SEQ", BTN.SEQ], ["KEYS", "SCL", BTN.SEL],
-  ["PLAY", "PLAY", BTN.PLAY], ["FREEZE", "REC", BTN.REC], ["BELLS", "ARP", BTN.ARP], ["SAVE", "SAVE", BTN.SAVE],
+  ["PLAY", "PLAY", BTN.PLAY], ["FREEZE", "REC", BTN.REC], ["DRUMS", "ARP", BTN.ARP], ["SAVE", "SAVE", BTN.SAVE],
   ["OCT −", "OCT-", BTN.OCT_DOWN], ["OCT +", "OCT+", BTN.OCT_UP]];
 const WHITE = [0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26];
 const BLACK = [1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25];
@@ -227,18 +228,23 @@ function drawScreen(fb) {                                    // RGB565
   }
   ctx.putImageData(img, 0, 0);
 }
+let lastLitB = 0;
+function knobNames() {                                       // the page's knobs; ARP held: the drums'
+  const pg = btnMask & (1 << BTN.ARP) ? 7 : PAGE_BTN.findIndex((id) => lastLitB & (1 << id)), row = ROWS[pg < 0 ? 0 : pg];
+  knobLabs.forEach((el, i) => { el.textContent = row[i % 4]; });
+}
 function drawLights([litB, litK]) {
+  lastLitB = litB;
   for (const b of btnEls) b.el.classList.toggle("lit", !!(litB & (1 << b.id)));
   keyEls.forEach((els, k) => els.forEach((el) => el.classList.toggle("lit", !!(litK & (1 << k)))));
-  const pg = PAGE_BTN.findIndex((id) => litB & (1 << id)), row = ROWS[pg < 0 ? 0 : pg];   // the lit page button: its knobs
-  knobLabs.forEach((el, i) => { el.textContent = row[i % 4]; });
+  knobNames();
 }
 
 // ------------------------------------------------------------------ the controls
 function syncButtons() {
   let m = 0;
   for (const id of btnHeld.values()) m |= 1 << id;
-  if (m !== btnMask) { btnMask = m; send({ type: "buttons", mask: m }); }
+  if (m !== btnMask) { btnMask = m; send({ type: "buttons", mask: m }); knobNames(); }
   for (const b of btnEls) b.el.classList.toggle("held", !!(m & (1 << b.id)));
 }
 function syncKeys() {
@@ -333,7 +339,7 @@ $("master").addEventListener("input", (e) => setMaster(+e.target.value));
   const PENC = { SELECT: 0, ALGORITHM: 1, "KNOB 1": 2, "KNOB 2": 3, "KNOB 3": 4, "KNOB 4": 5, PRESETS: 6 };
   const PDOES = { MASTER: "VOLUME", SELECT: "SCALE", PRESETS: "ROOT", ALGORITHM: "SCENE" };
   const PBTN = { "OCT-": [0, "DOWN"], "OCT+": [1, "UP"], FX: [2, "EFFECTS"], SCL: [3, "KEYS"], ENV: [4, "SHAPE"], LFO: [5, "MOTION"],
-                 EDIT: [6, "TONE"], GLO: [7, "DRONE"], HOME: [8, "SKY"], SAVE: [9, "SAVE"], ARP: [10, "BELLS"], SEQ: [11, "MACHINE"],
+                 EDIT: [6, "TONE"], GLO: [7, "DRONE"], HOME: [8, "SKY"], SAVE: [9, "SAVE"], ARP: [10, "DRUMS"], SEQ: [11, "MACHINE"],
                  PLAY: [12, "PLAY"], REC: [13, "FREEZE"] };
   const place = (el, x, y, w, h) => Object.assign(el.style, { left: `${x / W * 100}%`, top: `${y / H * 100}%`, width: `${w / W * 100}%`, height: `${h / H * 100}%` });
   const at = (tag, cls, x, y, w, h) => { const el = document.createElement(tag); el.className = cls; place(el, x, y, w, h); plate.appendChild(el); return el; };

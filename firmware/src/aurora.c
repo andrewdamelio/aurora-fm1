@@ -15,13 +15,14 @@
  *   LFO    MOTION     RATE     SWEEP    WIDTH    TREMOLO    ribbons of their movement
  *   GLO    DRONE      TONE     FIFTH    SUB      BREATH     the drone's rings rising from under the horizon
  *   SEQ    MACHINE    CHORDS   RANGE    VOICES   ANSWER     the scale as a constellation, its chord lit
+ *   ARP    DRUMS      TEMPO    LEVEL    BUSY     SWING      (ARP held) the pattern as rows of lights, a playhead
  *
  *   ALGORITHM    the scene (its sound, its sky, its scale, its settings)      SELECT   the scale
  *   PRESETS      the root note                                                OCT-/+   the register (both: middle)
  *   keys         PADS: play pads, snapped to the scale; HOLD: a key latches its note; BELLS: strike bells
  *   SEL          tap: the keys' mode (PADS, HOLD, BELLS); held + a key: that key is the root
  *   PLAY         the machine plays / waits (lit: playing)      REC    FREEZE: the reverb and the sky hold still (lit)
- *   ARP          a fall of bells now: a shower of stars        SAVE   keep all this as the power-on state
+ *   ARP          tap: the drums start (a new random pattern) or stop; held: their knobs      SAVE   keep all this
  *   MIDI in      notes play the pads
  */
 #define APP_NAME "AURORA"
@@ -70,27 +71,29 @@ enum { P_DENSITY, P_BRIGHT, P_SPACE, P_DRIFT,   /* HOME: the sky */
        P_RATE, P_SWEEP, P_WIDTH, P_TREMOLO,     /* LFO: their motion */
        P_DTONE, P_FIFTH, P_SUB, P_BREATH,       /* GLO: the drone */
        P_CHORDS, P_RANGE, P_VOICES, P_ANSWER,   /* SEQ: the machine */
+       P_TEMPO, P_DLEVEL, P_BUSY, P_SWING,      /* ARP held: the drums */
        NPARAM };
 static const char *const P_NAME[NPARAM] = {
     "DENSITY", "BRIGHT", "SPACE", "DRIFT", "ECHO", "BELLS", "WIND", "DRONE",
     "ATTACK", "RELEASE", "LENGTH", "PADS", "WAVE", "DETUNE", "RESO", "SHIMMER",
     "RATE", "SWEEP", "WIDTH", "TREMOLO", "TONE", "FIFTH", "SUB", "BREATH",
-    "CHORDS", "RANGE", "VOICES", "ANSWER"};
+    "CHORDS", "RANGE", "VOICES", "ANSWER", "TEMPO", "LEVEL", "BUSY", "SWING"};
 /* where the knobs start that a scene does not set */
 static const uint8_t P_DEF[NPARAM] = {
     64, 64, 90, 56, 60, 40, 30, 80,
     43, 53, 64, 85, 50, 40, 23, 0,
     56, 20, 90, 0, 50, 64, 0, 24,
-    64, 64, 80, 38};
-enum { PG_HOME, PG_FX, PG_ENV, PG_EDIT, PG_LFO, PG_GLO, PG_SEQ, NPAGE };
+    64, 64, 80, 38, 38, 70, 56, 24};
+enum { PG_HOME, PG_FX, PG_ENV, PG_EDIT, PG_LFO, PG_GLO, PG_SEQ, NPAGE, PG_RHY = NPAGE, NVIEW };   /* (RHYTHM: while ARP is held) */
 static const uint8_t PAGE_BTN[NPAGE] = {BTN_HOME, BTN_FX, BTN_ENV, BTN_EDIT, BTN_LFO, BTN_GLO, BTN_SEQ};
-static const char *const PAGE_NAME[NPAGE] = {"SKY", "EFFECTS", "PAD SHAPE", "PAD TONE", "MOTION", "DRONE", "MACHINE"};
+static const char *const PAGE_NAME[NVIEW] = {"SKY", "EFFECTS", "PAD SHAPE", "PAD TONE", "MOTION", "DRONE", "MACHINE", "DRUMS"};
 enum { KM_PADS, KM_HOLD, KM_BELLS, NKMODE };
 static const char *const KM_NAME[NKMODE] = {"PADS", "HOLD", "BELLS"};
 
 static volatile int32_t par[NPARAM];            /* 0 .. 127 */
 static volatile int32_t g_scene, g_scale, g_root, g_oct, g_run = 1, g_freeze;
-static volatile uint32_t g_casc;                /* falls of bells asked for (ARP) */
+static volatile uint32_t g_casc;                /* falls of bells asked for (none now: ARP is the drums) */
+static volatile int32_t g_drums;                /* the drums play (ARP) */
 
 typedef struct { const char *name; uint8_t n; uint8_t st[7]; } scale_t;
 static const scale_t SCALES[] = {
@@ -330,7 +333,7 @@ static void bell_strike(int32_t note, int32_t vel, int32_t kind)   /* vel 0 .. 1
     note = clamp(note, 48, 93);
     b->ic = pitch_inc((uint32_t)note * 16u);
     b->im = (b->ic >> 1) * (note > 84 ? 4u : RATIO2[arnd_n(4)]);   /* (high up: the octave only, nothing near the top of the band) */
-    b->amp = 5000 + vel * 52;
+    b->amp = ((5000 + vel * 52) * 9) >> 4;     /* (~5 dB under the first version's) */
     b->idx = clamp(13000 + (int32_t)arnd_n(22000) - (note - 72) * 550, 4000, 40000);
     b->kamp = note > 86 ? 7 : 8;                /* ~0.75 s or ~1.5 s to 1/e, then the echo and the reverb */
     b->pan = 30 + (int32_t)arnd_n(196);
@@ -424,6 +427,81 @@ static void wind_render(void)
         bus_rev[i] += (y * 110) >> 8;
     }
     wn.a_prev = a1;
+}
+
+/* the drums (ARP): 16 steps, made up at random by the main loop each time they start: a soft kick (a sine falling in
+ * pitch), a snare (noise through a band, a short body), hats (noise, differenced: closed or open) and a blip tuned to the
+ * scale (two-operator FM) that goes into the echo. TEMPO 60 .. 140 BPM, LEVEL, SWING (the off-beats late) */
+enum { DK_KICK = 1, DK_SNARE = 2, DK_HAT = 4, DK_OPEN = 8, DK_PERC = 16 };
+static volatile uint8_t dpat[16], dacc[16], ddeg[16];   /* each step: what plays, its accent 0..127, the blip's degree */
+static volatile int32_t vis_step = -1;
+static volatile uint32_t vis_kick_seq, vis_snare_seq, vis_hat_seq;
+static struct {
+    uint32_t pos, len, step, kph, sph, pc, pm, pic, pim;
+    int32_t on, kamp, kpe, samp, sic1, sic2, hamp, hdec, hx, pamp, pidx;
+} dm;
+static void drums_hit(void)
+{
+    uint32_t f = dpat[dm.step], a = dacc[dm.step];
+    int32_t lv = par[P_DLEVEL];
+    if (f & DK_KICK) dm.kamp = (int32_t)(20000u + a * 60u) * lv / 100, dm.kpe = 32767, dm.kph = 0, vis_kick_seq = vis_kick_seq + 1u;
+    if (f & DK_SNARE) dm.samp = (int32_t)(12000u + a * 90u) * lv / 100, dm.sph = 0, vis_snare_seq = vis_snare_seq + 1u;
+    if (f & (DK_HAT | DK_OPEN)) dm.hamp = (int32_t)(3500u + a * 90u) * lv / 100, dm.hdec = f & DK_OPEN ? 12 : 9,
+                                vis_hat_seq = vis_hat_seq + 1u;
+    if (f & DK_PERC) {
+        const scale_t *s = &SCALES[g_scale];
+        int32_t note = clamp(72 + g_root + scale_note(s, ddeg[dm.step] % (2u * s->n)), 60, 96);
+        dm.pic = pitch_inc((uint32_t)note * 16u), dm.pim = dm.pic * 2u;
+        dm.pamp = (int32_t)(2500u + a * 30u) * lv / 100, dm.pidx = 26000;
+    }
+}
+static void drums_render(void)
+{
+    uint32_t i, bpm = 60u + (uint32_t)par[P_TEMPO] * 80u / 127u, base = 661500u / bpm, sw = (uint32_t)par[P_SWING];
+    tsvf_t c;
+    if (g_drums && !dm.on) dm.on = 1, dm.step = 15, dm.pos = 0, dm.len = 1;   /* (starts on the next frame: step 0) */
+    if (!g_drums) dm.on = 0, vis_step = -1;
+    if (!dm.on && !dm.kamp && !dm.samp && !dm.hamp && !dm.pamp) return;
+    tsvf_coef_k(&c, 96 << 8, 3000);             /* the snare's band, ~1.8 kHz */
+    for (i = 0; i < VB; i++) {
+        int32_t y = 0, rv = 0, dly = 0, n;
+        if (dm.on && ++dm.pos >= dm.len) {      /* the next step; SWING: the off-beats come late, the on-beats early */
+            dm.pos = 0, dm.step = (dm.step + 1u) & 15u;
+            dm.len = dm.step & 1u ? base - base * sw / 400u : base + base * sw / 400u;
+            vis_step = (int32_t)dm.step;
+            drums_hit();
+        }
+        if (dm.kamp) {
+            uint32_t f = 46u + ((94u * (uint32_t)dm.kpe) >> 15);
+            dm.kph += f * 97391u;
+            n = (sin15(dm.kph) * dm.kamp) >> 15;
+            y += n, rv += n >> 3;
+            dm.kpe -= (dm.kpe >> 8) + (dm.kpe > 0);
+            dm.kamp -= (dm.kamp >> 12) + (dm.kamp > 0);
+        }
+        if (dm.samp) {
+            int32_t x = (int32_t)(arnd() >> 17) - 16384;
+            dm.sph += 185u * 97391u;
+            n = (((tsvf_any(&c, 3000, FT_BP, x, &dm.sic1, &dm.sic2) + (sin15(dm.sph) >> 2)) * dm.samp) >> 15);
+            y += n, rv += n >> 1;
+            dm.samp -= (dm.samp >> 11) + (dm.samp > 0);
+        }
+        if (dm.hamp) {
+            int32_t x = (int32_t)(arnd() >> 17) - 16384, h = x - dm.hx;
+            dm.hx = x;
+            n = (h * dm.hamp) >> 15;
+            y += n, rv += n >> 2;
+            dm.hamp -= (dm.hamp >> dm.hdec) + (dm.hamp > 0);
+        }
+        if (dm.pamp) {
+            dm.pc += dm.pic, dm.pm += dm.pim;
+            n = (sin15(dm.pc + (uint32_t)(sin15(dm.pm) * dm.pidx)) * dm.pamp) >> 15;
+            y += n, rv += n >> 1, dly += n;
+            dm.pamp -= (dm.pamp >> 11) + (dm.pamp > 0);
+            dm.pidx -= dm.pidx >> 9;
+        }
+        bus_l[i] += y, bus_r[i] += y, bus_rev[i] += rv, bus_dly[i] += dly;
+    }
 }
 
 /* the echo: two lines, each feeding the other (left, then right, then left), darker each time round */
@@ -577,6 +655,7 @@ static void app_audio(int32_t *out, uint32_t n)
     for (k = 0; k < NB; k++) bell_render(&bell[k]);
     drone_render();
     wind_render();
+    drums_render();
     echo_render();
     rv_size = g_freeze ? RV_INF : 46 + space * 80 / 127;   /* SPACE: ~2 s .. ~30 s; FREEZE: for ever */
     rv_damp = 74 - par[P_BRIGHT] * 40 / 127;
@@ -621,7 +700,7 @@ static const uint8_t BAYER[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}
 static const uint8_t ICE[5][3] = {{225, 250, 255}, {150, 215, 255}, {120, 140, 240}, {4, 10, 22}, {30, 54, 80}};
 
 /* the main loop's state the screen shows */
-static uint32_t page, kmode, page_t;            /* the page open, the keys' mode, when the page opened */
+static uint32_t page, kmode, page_t, view;      /* the page open, the keys' mode, when the page opened, the page shown */
 
 /* the HUD: what a knob just changed, or a line of news */
 enum { HUD_OFF, HUD_KNOB, HUD_MSG };
@@ -724,7 +803,7 @@ static int16_t oc_y[NOC][240];                  /* the line's row, x 16 */
 static uint8_t oc_a[NOC][240];                  /* its light */
 static uint8_t oc_col[NOC][3];
 static uint32_t oc_n, oc_refl;                  /* how many; which ones the water mirrors (bits) */
-#define NDOT 32u
+#define NDOT 72u
 static struct { int16_t x, y; uint8_t rad, a, r, g, b; } dot[NDOT];   /* glowing points */
 static uint32_t ndot;
 #define NSEG 8u
@@ -889,6 +968,17 @@ static void ov_setup(uint32_t now)              /* this frame's light for the pa
             nseg++;
         }
         if (vis_chord_seq != v_chord_seen) v_chord_seen = vis_chord_seq, v_flash = v_flash > 90 ? v_flash : 90;
+    } else if (pg == PG_RHY) {                  /* the drums: four rows of lights low in the sky (blip, hats, snare, kick),
+                                                 * the step playing bright */
+        static const uint8_t ROWF[4] = {DK_PERC, DK_HAT | DK_OPEN, DK_SNARE, DK_KICK}, ROWR[4] = {3, 3, 4, 5}, ROWP[4] = {2, 1, 0, 0};
+        int32_t st = vis_step, row;
+        for (row = 0; row < 4; row++)
+            for (k = 0; k < 16u; k++) {
+                int32_t xx = 18 + (int32_t)k * 204 / 15, yy = 70 + row * 20, on = dpat[k] & ROWF[row], a;
+                a = on ? (int32_t)k == st ? 255 : 190 + dacc[k] / 4 : (int32_t)k == st ? 110 : 50;
+                if (!g_drums) a = a / 2;
+                dot_add(xx, yy, on ? ROWR[row] : 1, (a * f) >> 8, (int32_t)k == st && on ? wpal : pal_now[ROWP[row]]);
+            }
     } else if (pg == PG_FX) {                   /* the effects: ripples on the water (ECHO), the stars (BELLS), snow on
                                                  * the wind (WIND), the horizon glowing (DRONE) */
         int32_t wind = par[P_WIND];
@@ -946,7 +1036,7 @@ static void ov_strip(uint32_t y0, uint32_t now)  /* the page's light, the frozen
                 if (d2 >= r2) continue;
                 v = a - d2 * a / r2;
                 v = (v * v) >> 8;
-                if (d2 <= 1) v = 255;
+                if (d2 <= 1 && a > 100) v = 255;
                 px_add(cx + dx, cy + dy, y0, (dot[k].r * v) >> 8, (dot[k].g * v) >> 8, (dot[k].b * v) >> 8);
             }
         }
@@ -1077,9 +1167,9 @@ static void frame_setup(uint32_t now)
     v_ice = clamp(v_ice, 0, 256);
     v_tc += dt * (uint32_t)(40 + par[P_DRIFT]) * (uint32_t)(256 - v_ice) / (104u * 256u);
     v_run_lvl += g_run ? (256 - v_run_lvl + 15) / 16 : (90 - v_run_lvl) / 24;   /* waiting: the aurora sinks low */
-    ov_fade += page != PG_HOME && page == ov_page ? (256 - ov_fade + 3) / 4 : -(ov_fade + 3) / 4;
+    ov_fade += view != PG_HOME && view == ov_page ? (256 - ov_fade + 3) / 4 : -(ov_fade + 3) / 4;
     ov_fade = clamp(ov_fade, 0, 256);
-    if (ov_fade == 0) ov_page = page;
+    if (ov_fade == 0) ov_page = view;
     t = v_tc;
     ice = v_ice;
     for (k = 0; k < 5u; k++) {                  /* the colours ease to the scene's (and to ice, frozen) */
@@ -1162,6 +1252,16 @@ static void frame_setup(uint32_t now)
             for (j = 1; j <= e / 32 + 1; j++) ripple(rx + (j & 1 ? 14 : -14) * j, a >> j, now + (uint32_t)j * (j & 1 ? 500u : 375u));
         }
     }
+    {                                           /* the drums in the sky: a kick, the aurora pulses; a snare, a star flares;
+                                                 * the hats, stars twinkle */
+        static uint32_t ks, ss, hs;
+        if (vis_kick_seq != ks) ks = vis_kick_seq, v_flash = v_flash > 80 ? v_flash : 80;
+        if (vis_snare_seq != ss) {
+            ss = vis_snare_seq, star[vrnd_n(NSTAR)].flash = 230;
+            if (vrnd_n(5) == 0u) meteor(now, 30 + (int32_t)vrnd_n(180), 6 + (int32_t)vrnd_n(50), (vrnd() & 1u ? 1 : -1) * (4 + (int32_t)vrnd_n(4)), 3, 420u);
+        }
+        if (vis_hat_seq != hs) hs = vis_hat_seq, star[vrnd_n(NSTAR)].flash = 110;
+    }
     v_flash -= (v_flash >> 4) + (v_flash > 0);
     for (k = 0; k < NSTAR; k++) star[k].flash = (uint8_t)(star[k].flash - (star[k].flash >> 3) - (star[k].flash > 0));
     for (k = 0; k < NMET; k++)
@@ -1190,14 +1290,15 @@ static void hud_draw(uint32_t y0, uint32_t now)   /* the HUD's text into this st
     if (y0 == 0u) {                             /* the top line: news, a knob, the page, what is held */
         if (hud_mode == HUD_MSG) tl = hud_l, tr = hud_r;
         else if (hud_mode == HUD_KNOB && hud_param < NPARAM) put_u(val, (uint32_t)par[hud_param]), tl = P_NAME[hud_param], tr = val;
-        else if (page != PG_HOME) tl = PAGE_NAME[page], tr = kmode != KM_PADS ? KM_NAME[kmode] : g_freeze ? "FROZEN" : "", cl = C_WHITE;
+        else if (view == PG_RHY) tl = PAGE_NAME[view], tr = g_drums ? "PLAYING" : "OFF", cl = C_WHITE;
+        else if (view != PG_HOME) tl = PAGE_NAME[view], tr = kmode != KM_PADS ? KM_NAME[kmode] : g_freeze ? "FROZEN" : "", cl = C_WHITE;
         else if (kmode != KM_PADS || g_freeze) tl = kmode != KM_PADS ? KM_NAME[kmode] : "", tr = g_freeze ? "FROZEN" : "";
         if (tl) cv_text(6, 4, &FONT_S, tl, cl);
         if (tr) cv_text(234 - text_w(&FONT_S, tr), 4, &FONT_S, tr, g_freeze && tr[0] == 'F' && tr[1] == 'R' ? RGB(190, 235, 255) : C_WHITE);
         if (hud_mode == HUD_KNOB && hud_param < NPARAM) cv_rect(6, 21, 2 + par[hud_param] * 226 / 127, 2, C_WHITE);
     }
-    if ((hud_mode == HUD_KNOB || page != PG_HOME) && y0 == 240u - STRIP) {   /* the four knobs of this page */
-        uint32_t k, pg = page != PG_HOME ? page : hud_param / 4u;
+    if ((hud_mode == HUD_KNOB || view != PG_HOME) && y0 == 240u - STRIP) {   /* the four knobs of this page */
+        uint32_t k, pg = view != PG_HOME ? view : hud_param / 4u;
         for (k = 0; k < 4u; k++) {
             uint32_t p = pg * 4u + k;
             const char *s = P_NAME[p];
@@ -1213,8 +1314,8 @@ static void hud_draw(uint32_t y0, uint32_t now)   /* the HUD's text into this st
 static void strip_draw(uint32_t s, uint32_t now)
 {
     uint32_t y0 = s * STRIP, yy, x, k, t = v_tc;
-    int32_t dim_top = hud_mode != HUD_OFF || page != PG_HOME || kmode != KM_PADS || g_freeze;
-    int32_t dim_bot = hud_mode == HUD_KNOB || page != PG_HOME, ice = v_ice;
+    int32_t dim_top = hud_mode != HUD_OFF || view != PG_HOME || kmode != KM_PADS || g_freeze;
+    int32_t dim_bot = hud_mode == HUD_KNOB || view != PG_HOME, ice = v_ice;
     cv_begin(240, STRIP, C_BLACK);
     for (yy = 0; yy < STRIP; yy++) {
         int32_t y = (int32_t)(y0 + yy);
@@ -1297,8 +1398,30 @@ static void strip_draw(uint32_t s, uint32_t now)
 }
 
 /* ------------------------------------------------------------------ the panel (the main loop) */
-#define SET_MAGIC 0x32525541u                   /* "AUR2" */
-typedef struct { uint32_t magic; uint8_t scene, scale, root, oct, run, kmode, par[NPARAM]; } set_t;
+#define SET_MAGIC 0x33525541u                   /* "AUR3" */
+typedef struct { uint32_t magic; uint8_t scene, scale, root, oct, run, kmode, drums, par[NPARAM]; } set_t;
+
+static void drums_new(void)                     /* a new pattern: BUSY says how much */
+{
+    int32_t b = par[P_BUSY], half = vrnd_n(3) == 0u, s;
+    uint8_t p[16], a[16], d[16];
+    for (s = 0; s < 16; s++) p[s] = 0, a[s] = (uint8_t)(50 + vrnd_n(40) + (s % 4 == 0 ? 30 : s % 2 == 0 ? 12 : 0)), d[s] = (uint8_t)vrnd_n(14);
+    p[0] |= DK_KICK;
+    for (s = 1; s < 16; s++) {                  /* kicks: on the beats more than between them */
+        int32_t pr = s == 8 && !half ? 60 : s % 4 == 0 ? 22 : s % 2 == 0 ? 12 : 4;
+        if ((int32_t)vrnd_n(100) < pr * (30 + b) / 80) p[s] |= DK_KICK;
+    }
+    if (half) p[8] |= DK_SNARE; else p[4] |= DK_SNARE, p[12] |= DK_SNARE;   /* the backbeat, or half time */
+    for (s = 1; s < 16; s += 2)                 /* ghost snares */
+        if ((int32_t)vrnd_n(100) < b / 10) p[s] |= DK_SNARE, a[s] = (uint8_t)(a[s] / 3);
+    for (s = 0; s < 16; s++) {                  /* hats: the eighths, then sixteenths as it gets busier; an open one */
+        if (s % 2 == 0 && (int32_t)vrnd_n(100) < 25 + b / 2) p[s] |= DK_HAT;
+        if (s % 2 == 1 && (int32_t)vrnd_n(100) < b / 3) p[s] |= DK_HAT, a[s] = (uint8_t)(a[s] * 2 / 3);
+    }
+    if (vrnd_n(2)) s = vrnd_n(2) ? 14 : 6, p[s] = (uint8_t)((p[s] & ~DK_HAT) | DK_OPEN);
+    for (s = 0; s < 2 + b / 40; s++) p[vrnd_n(16)] |= DK_PERC;   /* a few blips in the scale */
+    for (s = 0; s < 16; s++) dpat[s] = p[s], dacc[s] = a[s], ddeg[s] = d[s];
+}
 
 static void scene_load(uint32_t s, int with_sets)   /* a scene: its scale, its root and where its knobs start */
 {
@@ -1326,7 +1449,7 @@ static void hud_status(uint32_t ms)
 
 static void app_main(void)
 {
-    uint32_t prev_keys = 0, k, t_led = 0, latched = 0, sel_used = 0;
+    uint32_t prev_keys = 0, k, t_led = 0, latched = 0, sel_used = 0, arp_used = 0;
     int32_t key_note[27];
     set_t st;
     for (k = 0; k < 27u; k++) key_note[k] = -1;
@@ -1335,6 +1458,7 @@ static void app_main(void)
         scene_load(st.scene, 0);
         g_scale = st.scale, g_root = st.root % 12u, g_oct = clamp((int32_t)st.oct - 1, -1, 1), g_run = st.run != 0;
         kmode = st.kmode < NKMODE ? st.kmode : KM_PADS;
+        if (st.drums) drums_new(), g_drums = 1;
         for (k = 0; k < NPARAM; k++) par[k] = st.par[k] & 127;
     }
     v_seed ^= fm1_ticks();
@@ -1348,10 +1472,12 @@ static void app_main(void)
         platform_poll();
         now = fm1_ms;
 
-        /* the knobs: the page's four */
+        /* the knobs: the four of the page shown (the drums' while ARP is held) */
+        view = fm1_in.buttons >> BTN_ARP & 1u ? PG_RHY : page;
         for (k = 0; k < 4u; k++)
             if ((d = fm1_enc_take(ENC_KNOB1 + k)) != 0) {
-                uint32_t p = page * 4u + k;
+                uint32_t p = view * 4u + k;
+                if (view == PG_RHY) arp_used = 1;
                 par[p] = clamp(par[p] + d * 4, 0, 127);
                 hud_mode = HUD_KNOB, hud_param = p, hud_until = now + 2600u;
             }
@@ -1379,7 +1505,12 @@ static void app_main(void)
             }
         if (pressed & 1u << BTN_PLAY) g_run = !g_run, hud_msg("THE MACHINE", g_run ? "PLAYS" : "WAITS", 2200);
         if (pressed & 1u << BTN_REC) g_freeze = !g_freeze, hud_msg("FREEZE", g_freeze ? "ON" : "OFF", 2200);
-        if (pressed & 1u << BTN_ARP) g_casc = g_casc + 1u, hud_msg("A FALL OF BELLS", "", 1800);
+        if (pressed & 1u << BTN_ARP) arp_used = 0;
+        if (released & 1u << BTN_ARP && !arp_used) {   /* ARP tapped: the drums start, on a new pattern, or stop */
+            if (!g_drums) drums_new();
+            g_drums = !g_drums;
+            hud_msg("DRUMS", g_drums ? "ON" : "OFF", 1800);
+        }
         if (pressed & 1u << BTN_SEL) sel_used = 0;
         if (released & 1u << BTN_SEL && !sel_used) {   /* SEL tapped: the keys' next mode */
             if (kmode == KM_HOLD)               /* (leaving HOLD lets the held notes go) */
@@ -1398,7 +1529,7 @@ static void app_main(void)
         }
         if (pressed & 1u << BTN_SAVE) {
             st.magic = SET_MAGIC, st.scene = (uint8_t)g_scene, st.scale = (uint8_t)g_scale, st.root = (uint8_t)g_root;
-            st.oct = (uint8_t)(g_oct + 1), st.run = (uint8_t)g_run, st.kmode = (uint8_t)kmode;
+            st.oct = (uint8_t)(g_oct + 1), st.run = (uint8_t)g_run, st.kmode = (uint8_t)kmode, st.drums = (uint8_t)g_drums;
             for (k = 0; k < NPARAM; k++) st.par[k] = (uint8_t)par[k];
             hud_msg("POWER-ON STATE", settings_save(&st, sizeof st) == 0 ? "SAVED" : "FAILED", 2600);
         }
@@ -1450,7 +1581,7 @@ static void app_main(void)
             for (k = 0; k < NPAGE; k++) fm1_led_key(PAGE_BTN[k], page == k);
             fm1_led_key(BTN_PLAY, g_run);
             fm1_led_key(BTN_REC, g_freeze);
-            fm1_led_key(BTN_ARP, v_flash > 60);
+            fm1_led_key(BTN_ARP, g_drums && vis_step >= 0 && (vis_step & 3) < 2);   /* (the drums: it blinks the beat) */
             fm1_led_key(BTN_SEL, (int)(fm1_in.buttons >> BTN_SEL & 1u) || (kmode == KM_HOLD) || (kmode == KM_BELLS && (now & 512u)));
         }
 
