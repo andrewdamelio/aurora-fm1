@@ -171,6 +171,7 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--edge); border-radius: 
     <dl>
       <dt>HOME · Sky</dt><dd>DENSITY · BRIGHT · SPACE · DRIFT. The aurora alone</dd>
       <dt>FX · Effects</dt><dd>ECHO · BELLS · WIND · DRONE. Ripples, snow, the horizon glowing</dd>
+      <dt>FX again · Night</dt><dd>LAKE (water and crickets) · LOONS · CHOIR (the machine sings) · SLEEP (15–120 min). Fireflies; a moon sets as the timer runs</dd>
       <dt>ENV · Pad shape</dt><dd>ATTACK · RELEASE · LENGTH · PADS. The envelope across the sky</dd>
       <dt>EDIT · Pad tone</dt><dd>WAVE · DETUNE · RESO · SHIMMER. The waveform on the horizon</dd>
       <dt>LFO · Motion</dt><dd>RATE · SWEEP · WIDTH · TREMOLO. Ribbons of movement</dd>
@@ -179,7 +180,7 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--edge); border-radius: 
       <dt>SCL tap</dt><dd>the keys: PADS, HOLD (a key latches), BELLS, CHOIR (real singers)</dd>
       <dt>ARP · Drums</dt><dd>TEMPO · LEVEL · BUSY · SWING. LEVEL up from 0 starts them, 0 stops them; BUSY makes a new pattern</dd>
       <dt>Play · Freeze</dt><dd>the machine plays or waits · the reverb and the sky turn to ice</dd>
-      <dt>Save</dt><dd>keep the scene and settings for next time</dd>
+      <dt>Save</dt><dd>tap: keep it all for next time · hold + one of the first four keys: keep a moment; HOME + that key brings it back</dd>
     </dl>
     <p class="desk">Computer keyboard: <kbd>Z</kbd>–<kbd>/</kbd> <kbd>S</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> the keys · <kbd>1</kbd>–<kbd>8</kbd> the pages · <kbd>Tab</kbd> SCL · <kbd>←</kbd> <kbd>→</kbd> scene · <kbd>↑</kbd> <kbd>↓</kbd> scale · <kbd>Space</kbd> play · <kbd>Shift</kbd> freeze · <kbd>Enter</kbd> the drums' page</p>
     <p>No sound on an iPhone? Turn the ring/silent switch to ring.</p>
@@ -197,7 +198,7 @@ const WORKLET_SRC = __WORKLET_SRC__;
 const BTN = { OCT_DOWN: 0, OCT_UP: 1, FX: 2, SEL: 3, ENV: 4, LFO: 5, EDIT: 6, GLO: 7, HOME: 8, SAVE: 9, ARP: 10, SEQ: 11, PLAY: 12, REC: 13 };
 const ENC = { SELECT: 0, ALGORITHM: 1, KNOB1: 2, PRESETS: 6 };
 const ROWS = [["DENSITY", "BRIGHT", "SPACE", "DRIFT"], ["ECHO", "BELLS", "WIND", "DRONE"], ["ATTACK", "RELEASE", "LENGTH", "PADS"],
-  ["WAVE", "DETUNE", "RESO", "SHIMMER"], ["RATE", "SWEEP", "WIDTH", "TREMOLO"], ["TONE", "FIFTH", "SUB", "BREATH"], ["CHORDS", "RANGE", "VOICES", "EVOLVE"], ["TEMPO", "LEVEL", "BUSY", "SWING"]];
+  ["WAVE", "DETUNE", "RESO", "SHIMMER"], ["RATE", "SWEEP", "WIDTH", "TREMOLO"], ["TONE", "FIFTH", "SUB", "BREATH"], ["CHORDS", "RANGE", "VOICES", "EVOLVE"], ["TEMPO", "LEVEL", "BUSY", "SWING"], ["LAKE", "LOONS", "CHOIR", "SLEEP"]];
 const PAGE_BTN = [BTN.HOME, BTN.FX, BTN.ENV, BTN.EDIT, BTN.LFO, BTN.GLO, BTN.SEQ, BTN.ARP];   // ROWS[i]: the page this button opens
 const PANEL = [   // label, what the FM-1 prints on that button, id
   ["SKY", "HOME", BTN.HOME], ["EFFECTS", "FX", BTN.FX], ["SHAPE", "ENV", BTN.ENV], ["TONE", "EDIT", BTN.EDIT],
@@ -231,7 +232,11 @@ function drawScreen(fb) {                                    // RGB565
 }
 let lastLitB = 0;
 function knobNames() {                                       // the knobs of the page whose button is lit
-  const pg = PAGE_BTN.findIndex((id) => id !== BTN.ARP && lastLitB & (1 << id)), row = ROWS[pg < 0 ? 7 : pg];   // (none lit: the drums' page, its light blinking)
+  const lit = (id) => !!(lastLitB & (1 << id));
+  let pg = PAGE_BTN.findIndex((id) => id !== BTN.ARP && lit(id));
+  if (lit(BTN.FX) && lit(BTN.HOME)) pg = 8;                 // FX and HOME lit together: the NIGHT page (FX twice)
+  else if (pg < 0) pg = 7;                                   // none lit: the drums' page, its light blinking
+  const row = ROWS[pg];
   knobLabs.forEach((el, i) => { el.textContent = row[i % 4]; });
 }
 function drawLights([litB, litK]) {

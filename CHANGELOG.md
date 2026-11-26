@@ -1,0 +1,58 @@
+# Changelog
+
+## 1.4 — The night
+
+The lake comes alive, the machine learns to sing, and AURORA can play you to sleep.
+
+**The lake.** Press FX twice for the new NIGHT page.
+- **LAKE**: water lapping at the shore on both sides, and crickets that come and go over minutes. Fireflies drift over the shore.
+- **LOONS**: now and then a loon calls from far across the lake: two or three long tones on the scale, gliding, mostly reverb and echo. Rings spread across the water where it calls.
+
+**Choir.**
+- **CHOIR on the keys**: SCL now taps through PADS, HOLD, BELLS and CHOIR. Each key sings its note with three real singers, slightly apart, each with their own vibrato. Low keys get the men's voices, high keys the women's, and the vowel drifts through A E I O U. Each sung note sends a shaft of pale light down the sky.
+- **The machine sings too**: the NIGHT page's **CHOIR** knob sets how often a soft choir swells in on a new chord, more in calm and night sections. It never takes a voice you are singing on the keys.
+
+**Sleep timer.** The NIGHT page's **SLEEP** knob sets 15, 30, 45, 60, 90 or 120 minutes.
+- For the second half the machine thins out. For the last third (five minutes at most) the sound fades and the aurora sinks to the stars, then it goes quiet.
+- A crescent moon sets across the sky as the time runs out.
+- **PLAY** wakes it.
+
+**MIDI out.** Everything AURORA plays now goes out over USB, so it can drive your other synths with the same chords, motif and key changes:
+
+| Channel | Part |
+|---|---|
+| 1 | Pads |
+| 2 | Bells |
+| 3 | The drone's root |
+| 4 | The drums' mallets |
+| 5 | Choir |
+| 10 | Drums: 36 heartbeat, 37 rim, 70 shaker, 82 open shaker |
+
+Notes that come in over MIDI aren't sent back out, and every note that starts also stops.
+
+**Four saved moments.**
+- **Hold SAVE** and press one of the first four keys (F3 to G#3) to keep the whole setup: scene, scale, root, octave, key mode and every knob.
+- **Hold HOME** and press the same key to bring it back.
+- **Tap SAVE** to keep the power-on state, as before.
+
+**Also**
+- Settings from earlier versions start fresh (the save format grew to hold the moments): set things up again and press SAVE.
+
+The choir is made from VocalSet (Wilkins, Seetharaman, Wahl, Pardo, Northwestern University, 2018; CC BY 4.0), via GR!MM. See [LICENSING.md](LICENSING.md).
+
+## 1.3
+
+- **Newer FM-1s.** AURORA now accepts the UC25HQ80 flash chip of newer FM-1s (the ones with the logo under the screen): it installs on them, and SAVE keeps working after power-off. It also sends M-VAVE's full screen setup, so their screens aren't washed out. These are the same fixes Dinghy and OberVave carry.
+
+## 1.2
+
+- **Its own identity.** AURORA's package identity is FM-1_9441126.
+- **Built from source.** Releases are built and signed on GitHub by the FM-1 Firmware Hub's shared workflow.
+- **Generative.**
+  - Chord progressions, and a motif that keeps coming back.
+  - Sections (calm, bloom, night, sparkle, drift) that lean the knobs their way.
+  - Key changes, and the **EVOLVE** knob to set how much of this happens.
+- **Ambient drums.** ARP opens the drums' page; LEVEL starts and stops them. The kit is a heartbeat, a rim, a shaker and mallets on the chord.
+- **Pages.** Every button opens a page of four knobs, each with its own light in the sky.
+- **Key modes.** PADS, HOLD and BELLS.
+- **Freeze** turns the sky to ice.

@@ -135,9 +135,12 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
         <tr><td>PLAY</td><td>The machine plays or waits. Waiting, the aurora sinks low; the keys still play.</td></tr>
         <tr><td>REC</td><td>Freeze: the reverb holds what is in it, for ever, and the sky turns to ice.</td></tr>
         <tr><td>ARP</td><td>The drums' page: TEMPO, LEVEL, BUSY, SWING. LEVEL up from 0 starts them, 0 stops them. Its light blinks the beat while they play.</td></tr>
-        <tr><td>SAVE</td><td>Keeps everything (scene, scale, root, octave, key mode, drums on or off, all 32 knobs) as the power-on state. Save while it is quiet: writing the flash stops the sound for a moment.</td></tr>
+        <tr><td>SAVE</td><td>Tap: keeps everything (scene, scale, root, octave, key mode, all the knobs) as the power-on state. Hold it and press one of the first four keys (F3 to G#3): keeps that as a moment. Writing the flash stops the sound for a moment.</td></tr>
+        <tr><td>HOME + key</td><td>Hold HOME and press one of the first four keys: back to that moment (EMPTY if none is kept there).</td></tr>
+        <tr><td>FX</td><td>The effects page; press it again for the NIGHT page (its light and HOME's together); a third time, back to the sky.</td></tr>
         <tr><td>MASTER</td><td>The volume.</td></tr>
         <tr><td>MIDI in</td><td>Notes play the pads, as they come (not snapped to the scale).</td></tr>
+        <tr><td>MIDI out</td><td>Everything AURORA plays goes out over USB, so it can play your other synths: pads on channel 1, bells 2, the drone's root 3, the drums' mallets 4, the choir 5, the drums 10 (36 heartbeat, 37 rim, 70 shaker, 82 open shaker). Notes that came in over MIDI are not sent back.</td></tr>
       </tbody>
     </table>
   </div>
@@ -253,6 +256,11 @@ const PAGES = [
         ["LEVEL", "How loud the drums are. 0 is off; up from 0 starts them on a new pattern."],
         ["BUSY", "How full the pattern is: more shaker, ghost rims, mallets, a third heartbeat. Turning it makes a new pattern."],
         ["SWING", "How late the off-beats come."]] },
+  { btn: "FX ×2", name: "Night", img: "night", sky: "Press FX a second time. Fireflies drift over the shore, more with LAKE; each loon call sends rings across the water (on every page); with the sleep timer on, a crescent moon sets across the sky as the time runs out, and the screen says MOON SETTING.",
+    k: [["LAKE", "Water lapping at the shore on both sides, and crickets that come and go over minutes. 0 is off."],
+        ["LOONS", "How often a loon calls from far off: two or three long tones on the scale, gliding, into the reverb and the echo. 0 never, up to about every 12 s."],
+        ["CHOIR", "How often the machine's own choir swells in, softly, on a new chord: more in calm and night sections. It never takes a voice you are singing on the keys."],
+        ["SLEEP", "A sleep timer: 15, 30, 45, 60, 90 or 120 minutes (0 off). For the second half the machine thins out, for the last third (5 minutes at most) the sound fades, the aurora sinks to the stars, then quiet. PLAY wakes it. Never kept by SAVE."]] },
 ];
 const SCENES = [
   ["Boreal", "D Lydian", "Half saw, half sine", "Green to teal to violet"],
