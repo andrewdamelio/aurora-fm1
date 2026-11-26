@@ -15,6 +15,11 @@
 
 **Loons you can hear.** Calls come more often (the first about 12 s after switch-on), louder and less buried in the reverb, with their own level on MIX 2.
 
+**Drums you can hear, all of them.**
+- The rim and the shaker were nearly silent: the rim sat 32 dB under the heartbeat, the shaker 45 dB under, and the dark filter took the rest. Now the rim is level with the heartbeat, the mallets just under it, and the shaker a light layer 6 dB down, with its own gentler filter.
+- The main beats always play. Calm sections only thin out the extras, instead of cutting down to the heartbeat alone.
+- The drums page lights each step as it actually plays, so what you see is what you hear. The rim and heartbeat rows are now warm white, to stand out from the aurora.
+
 **New drum patterns, easier.** On the drums page, press ARP again for a new pattern. It comes in on the next downbeat, at full level, without leaving the page (HOME leaves). Turning BUSY still makes one too.
 
 **SEL's light** is steady in any key mode but PADS, instead of blinking. The screen says which mode you're in.

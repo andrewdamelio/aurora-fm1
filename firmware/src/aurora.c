@@ -583,6 +583,7 @@ static volatile uint8_t dpat[16], dacc[16], dprob[16];   /* the main loop's new 
 static volatile uint32_t g_dgen;                /* a new pattern is there (the main loop counts) */
 static volatile uint8_t apat[16], aprob[16];    /* the pattern playing (the audio's copy: it evolves) */
 static volatile int32_t vis_step = -1;
+static volatile uint32_t vis_played;            /* the steps that sounded last time round (bits) */
 static volatile uint32_t vis_kick_seq, vis_snare_seq, vis_hat_seq;
 static int32_t gn_motif_note(int32_t up);       /* (the machine's, below) */
 static int32_t sec_drums = 256;                 /* the section's say in how busy the drums are (0..256) */
@@ -600,15 +601,15 @@ static void drums_hit(uint32_t f, int32_t a)
     if (f & DK_SNARE) mo(0x99, 37, 50 + a / 3), dm.moff |= DK_SNARE;
     if (f & DK_HAT) mo(0x99, 70, 30 + a / 3), dm.moff |= DK_HAT;
     if (f & DK_OPEN) mo(0x99, 82, 40 + a / 3), dm.moff |= DK_OPEN;
-    if (f & DK_KICK) dm.kamp = (14000 + a * 40) * lv / 100, dm.kat = 0, dm.kpe = 32767, dm.kph = 0x40000000u, vis_kick_seq = vis_kick_seq + 1u;
-    if (f & DK_SNARE) dm.samp = (5000 + a * 36) * lv / 100, dm.sat = 0, dm.sph = 0, vis_snare_seq = vis_snare_seq + 1u;
-    if (f & (DK_HAT | DK_OPEN)) dm.hamp = (1400 + a * 22 + (int32_t)arnd_n(700)) * lv / 100, dm.hat_ = 0, dm.hdec = f & DK_OPEN ? 12 : 10,
+    if (f & DK_KICK) dm.kamp = (11000 + a * 34) * lv / 100, dm.kat = 0, dm.kpe = 32767, dm.kph = 0x40000000u, vis_kick_seq = vis_kick_seq + 1u;
+    if (f & DK_SNARE) dm.samp = (15000 + a * 80) * lv / 100, dm.sat = 0, dm.sph = 0, vis_snare_seq = vis_snare_seq + 1u;
+    if (f & (DK_HAT | DK_OPEN)) dm.hamp = (5200 + a * 60 + (int32_t)arnd_n(1500)) * lv / 100, dm.hat_ = 0, dm.hdec = f & DK_OPEN ? 12 : 10,
                                 vis_hat_seq = vis_hat_seq + 1u;
     if (f & DK_PERC) {
         int32_t note = gn_motif_note(1);
         while (note > 91) note -= 12;
         dm.pic = pitch_inc((uint32_t)clamp(note, 55, 91) * 16u), dm.pim = dm.pic;
-        dm.pamp = (2600 + a * 22) * lv / 100, dm.pidx = 9000;
+        dm.pamp = (4000 + a * 30) * lv / 100, dm.pidx = 9000;
         if (dm.mn) mo(0x83, dm.mn - 1, 64);
         mo(0x93, note, 50 + a / 3), dm.mn = note + 1;
     }
@@ -633,11 +634,11 @@ static void drums_step(void)                    /* a new step: what plays of it,
         }
     }
     if (!f) return;
-    if (!(s == 0u || pr >= 100)) {              /* chance, the section's mood scaling everything but the core */
-        if ((int32_t)arnd_n(100) >= (pr * keep) >> 8) return;
+    vis_played &= ~(1u << s);
+    if (!(s == 0u || pr >= 100)) {              /* an extra: its chance, a calmer section's mood lowering it (to half at most) */
+        if ((int32_t)arnd_n(100) >= (pr * (128 + (keep >> 1))) >> 8) return;
     }
-    if ((f & DK_KICK) && keep < 140 && s != 0u) f &= ~DK_KICK;   /* (calm: the heartbeat on the one only) */
-    if ((f & DK_SNARE) && keep < 100) f &= ~DK_SNARE;
+    vis_played |= 1u << s;
     dm.pf = (uint8_t)f;
     dm.ac = 40 + (int32_t)arnd_n(60) + (s % 4u == 0u ? 25 : 0);
     dm.pend = s == 0u || s == 8u ? 1u : 1u + arnd_n(150);   /* a few ms late, but the beats */
@@ -645,7 +646,8 @@ static void drums_step(void)                    /* a new step: what plays of it,
 static void drums_render(void)
 {
     uint32_t i, bpm = 60u + (uint32_t)par[P_TEMPO] * 80u / 127u, base = 661500u / bpm, sw = (uint32_t)par[P_SWING];
-    int32_t klp = 4000 + par[P_DKTONE] * 200;   /* TONE: the dark filter over them all */
+    int32_t klp = 4000 + par[P_DKTONE] * 200;   /* TONE: the dark filter over the heartbeat, the rim */
+    int32_t khp = 16000 + par[P_DKTONE] * 120;  /* .. and a gentler one over the shaker */
     tsvf_t c;
     if (dm.moff) {                              /* (MIDI: last block's drums let go) */
         if (dm.moff & DK_KICK) mo(0x89, 36, 64);
@@ -693,7 +695,7 @@ static void drums_render(void)
             dm.sat++;
             dm.sph += 820u * 97391u;
             n = ((tsvf_any(&c, 2400, FT_BP, x, &dm.sic1, &dm.sic2) + (dm.sat < 600 ? sin15(dm.sph) >> 3 : 0)) * a) >> 15;
-            y += n >> 1, rv += n + (n >> 1);
+            y += n, rv += n;
             dm.samp -= (dm.samp >> 11) + (dm.samp > 0);
         }
         if (dm.hamp) {                          /* the shaker: bright noise, eased in, to the right */
@@ -714,7 +716,7 @@ static void drums_render(void)
             dm.pidx -= dm.pidx >> 9;
         }
         dm.lp += ((y - dm.lp) * klp) >> 15;     /* (one pole: the dark filter) */
-        dm.lpr += ((hr - dm.lpr) * klp) >> 15;
+        dm.lpr += ((hr - dm.lpr) * khp) >> 15;   /* (the shaker: its own, brighter) */
         bus_l[i] += dm.lp + (dm.lpr >> 2), bus_r[i] += dm.lp + dm.lpr, bus_rev[i] += rv, bus_dly[i] += dly;
     }
 }
@@ -1411,13 +1413,16 @@ static void ov_setup(uint32_t now)              /* this frame's light for the pa
     } else if (pg == PG_RHY) {                  /* the drums: four rows of lights low in the sky (blip, hats, snare, kick),
                                                  * the step playing bright */
         static const uint8_t ROWF[4] = {DK_PERC, DK_HAT | DK_OPEN, DK_SNARE, DK_KICK}, ROWR[4] = {3, 3, 4, 5}, ROWP[4] = {2, 1, 0, 0};
+        static const int32_t WARM[2][3] = {{255 << 8, 196 << 8, 150 << 8}, {255 << 8, 236 << 8, 210 << 8}};   /* (the rim, the
+                                                 * heartbeat: warm whites, apart from the aurora's colours) */
         int32_t st = vis_step, row;
         for (row = 0; row < 4; row++)
             for (k = 0; k < 16u; k++) {
                 int32_t xx = 18 + (int32_t)k * 204 / 15, yy = 70 + row * 20, on = apat[k] & ROWF[row], a;
-                a = on ? (int32_t)k == st ? 255 : 90 + aprob[k] * 6 / 5 : (int32_t)k == st ? 110 : 50;   /* (brighter: likelier) */
+                a = on ? (vis_played >> k & 1u ? ((int32_t)k == st ? 255 : 200) : 45) : (int32_t)k == st ? 90 : 30;   /* (bright: it
+                                                 * sounded last time round; dim: skipped this time) */
                 if (!g_drums) a = a / 2;
-                dot_add(xx, yy, on ? ROWR[row] : 1, (a * f) >> 8, (int32_t)k == st && on ? wpal : pal_now[ROWP[row]]);
+                dot_add(xx, yy, on ? ROWR[row] : 1, (a * f) >> 8, (int32_t)k == st && on ? wpal : row >= 2 ? WARM[row - 2] : pal_now[ROWP[row]]);
             }
     } else if (pg == PG_MIX1 || pg == PG_MIX2) {   /* the mix: four columns of light from the lake, one over each knob,
                                                  * as tall as its level, glowing as that part sounds */
@@ -1945,15 +1950,16 @@ static void drums_new(void)                     /* a new pattern, for the haze: 
     uint8_t p[16], a[16], pr[16];
     for (s = 0; s < 16; s++) p[s] = 0, pr[s] = 100, a[s] = (uint8_t)(40 + vrnd_n(40) + (s % 4 == 0 ? 30 : s % 2 == 0 ? 10 : 0));
     p[0] |= DK_KICK;                            /* the heartbeat: the one, and an answer */
-    if (half) s = vrnd_n(2) ? 10 : 11, p[s] |= DK_KICK, pr[s] = (uint8_t)(55 + vrnd_n(30));
-    else p[8] |= DK_KICK, pr[8] = 85;
+    if (half) s = vrnd_n(2) ? 10 : 11, p[s] |= DK_KICK, pr[s] = 100;
+    else p[8] |= DK_KICK, pr[8] = 100;
     if (vrnd_n(100) < (uint32_t)(10 + b / 4)) s = vrnd_n(2) ? 6 : 14, p[s] |= DK_KICK, pr[s] = (uint8_t)(20 + vrnd_n(30));
-    if (half) p[8] |= DK_SNARE, pr[8] = 90;     /* the rim: half time mostly */
-    else p[4] |= DK_SNARE, p[12] |= DK_SNARE, pr[4] = pr[12] = 80;
+    if (half) p[8] |= DK_SNARE, pr[8] = 100;    /* the rim: half time mostly */
+    else p[4] |= DK_SNARE, p[12] |= DK_SNARE, pr[4] = pr[12] = 100;
     for (s = 1; s < 16; s += 2)                 /* ghost rims */
         if ((int32_t)vrnd_n(100) < b / 6) p[s] |= DK_SNARE, pr[s] = (uint8_t)(20 + vrnd_n(25)), a[s] = (uint8_t)(a[s] / 3);
     for (s = 0; s < 16; s++)                    /* the shaker: every sixteenth may, the eighths more often */
-        if (vrnd_n(100) < (uint32_t)(40 + b / 2)) p[s] |= DK_HAT, pr[s] = pr[s] < 100 ? pr[s] : (uint8_t)(s % 2 ? 25 + b / 3 : 55 + b / 4);
+        if (s % 2 == 0 ? vrnd_n(100) < (uint32_t)(55 + b / 3) : vrnd_n(100) < (uint32_t)(20 + b / 2))   /* the eighths always, */
+            p[s] |= DK_HAT, pr[s] = pr[s] < 100 ? pr[s] : (uint8_t)(s % 2 ? 35 + b / 3 : 100);   /* the sixteenths now and then */
     if (vrnd_n(2)) s = vrnd_n(2) ? 14 : 6, p[s] = (uint8_t)((p[s] & ~DK_HAT) | DK_OPEN), pr[s] = 60;
     for (s = 0; s < 2 + b / 32; s++) {          /* mallets: on the chord, the motif */
         int32_t j = (int32_t)vrnd_n(16);
