@@ -1,0 +1,79 @@
+# AURORA: build the FM-1 package on GitHub (tools/build_fwsc.sh, on GR!MM's build system), and on a tag vX.Y publish
+# a release with aurora-X.Y.fwsc and its SHA-256. The JieLi toolchain comes from pkgman.jieliapp.com (GR!MM's
+# tools/get_toolchain.sh), the AC79 SDK from gitee.com, as in GR!MM's and Dinghy's builds. Run it by hand
+# (workflow_dispatch) or push a branch for a test build: the package is then a workflow artifact, not a release.
+name: release
+
+on:
+  push:
+    branches-ignore: [main]
+    tags: ['v*', 'V*']
+  workflow_dispatch:
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # the release on a tag
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Python packages
+        run: python3 -m pip install Pillow
+
+      - name: GR!MM (the platform AURORA is built on)
+        run: |
+          mkdir -p build
+          git init -q build/grimm
+          git -C build/grimm remote add origin https://github.com/GRiMMBIENT/grimm
+          git -C build/grimm fetch -q --depth 1 origin b519acbee7dbdb3e0fb82b15b86a913898c6f8f5
+          git -C build/grimm checkout -q FETCH_HEAD
+
+      - name: JieLi toolchain (pkgman.jieliapp.com)
+        run: sh build/grimm/tools/get_toolchain.sh
+
+      - name: JieLi AC79 SDK (three files of it are placed in the package)
+        run: |
+          for i in 1 2 3; do                     # (gitee.com drops a clone now and then: try again)
+            git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 \
+                https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git ~/fw-AC79_AIoT_SDK && break
+            rm -rf ~/fw-AC79_AIoT_SDK
+            sleep 20
+          done
+          test -d ~/fw-AC79_AIoT_SDK
+
+      - name: Build
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then V="${GITHUB_REF_NAME#[vV]}"; else V=""; fi
+          sh tools/build_fwsc.sh $V
+          (cd build && sha256sum aurora*.fwsc > SHA256SUMS && cat SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aurora-fwsc
+          path: |
+            build/aurora*.fwsc
+            build/SHA256SUMS
+          if-no-files-found: error
+
+      - name: Release (tags only)
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/aurora-*.fwsc
+            build/SHA256SUMS
+          body: |
+            AURORA for the M-VAVE FM-1. Unofficial firmware, not made or endorsed by M-VAVE: install at your own risk.
+
+            **Install** (Python 3, `pip install mido python-rtmidi`, from a checkout of [GR!MM](https://github.com/GRiMMBIENT/grimm)):
+            `python3 tools/fm1_install.py aurora-X.Y.fwsc` (the `.fwsc` file below)
+
+            AURORA keeps GR!MM's update and recovery code, so any FM-1 firmware can be installed over it again, and the
+            [Firmware Hub](https://thefirmwarehub.com/)'s Rescue page brings back a stuck FM-1. The package carries
+            GR!MM's identity (FM-1_966), so the hub shows GR!MM as installed. SAVE writes the settings sector GR!MM also
+            uses: GR!MM's power-on state starts fresh after it.

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AURORA guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, nocturnal, exact: a field guide to an instrument
+   IDEA: the FM-1's own panel as the map: press a button, its page lights up
+   PICTURE: the panel drawn in SVG, every button live; beside it the screen that button opens
+   COLOUR and TYPE: night sky ground, aurora green leading, teal and violet support; Sora titles, Inter text
+   LAYOUT: panel + screen first; then a band per page; then keys, effects, shortcuts, install */
+:root{color-scheme:dark;--bg:#060a13;--bg2:#0b1222;--card:#0f1829;--edge:#1f2c45;--ink:#e6eef5;--dim:#93a6ba;--green:#6ff5a8;--teal:#4fd6e4;--violet:#a98bff;--ice:#bfe9ff}
+:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Sora,Inter,sans-serif;line-height:1.08;text-wrap:balance;margin:0}
+h1{font-size:clamp(34px,5vw,52px);font-weight:700}
+h2{font-size:clamp(24px,3vw,32px);font-weight:600;margin-bottom:14px}
+h3{font-size:19px;font-weight:600}
+p{margin:0 0 12px;max-width:68ch}
+a{color:var(--green)}
+.band{padding:clamp(28px,4vw,60px) max(5vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+.sky{background:radial-gradient(120% 90% at 70% -10%,#12324a 0%,#0a1630 38%,var(--bg) 72%);position:relative;overflow:hidden}
+.sky::before{content:"";position:absolute;inset:-20% -10% auto;height:70%;background:linear-gradient(100deg,transparent 15%,rgba(111,245,168,.16) 35%,rgba(79,214,228,.12) 50%,rgba(169,139,255,.12) 64%,transparent 82%);filter:blur(40px);transform:skewY(-6deg);pointer-events:none}
+.lede{color:var(--dim);font-size:17px;margin-top:12px}
+.top{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:clamp(18px,3vw,36px);margin-top:28px;align-items:start;position:relative}
+.panel{background:linear-gradient(#17202f,#0f1520);border:1px solid var(--edge);border-radius:18px;padding:10px}
+.panel svg{display:block;width:100%;height:auto}
+.panel .hint{color:var(--dim);font-size:13px;margin:8px 6px 2px}
+svg .btn rect{fill:#232d3d;stroke:#3a475c;stroke-width:1.2;cursor:pointer;transition:fill .15s}
+svg .btn text{fill:#d9e2ea;font:600 13px Inter,sans-serif;pointer-events:none}
+svg .btn text.s{fill:var(--green);font-size:9.5px;font-weight:500}
+svg .btn:hover rect,svg .btn:focus rect{fill:#2e3b50}
+svg .btn.on rect{fill:var(--green);stroke:var(--green)}
+svg .btn.on text,svg .btn.on text.s{fill:#062014}
+svg .btn:focus{outline:none}
+svg .btn:focus-visible rect{stroke:#fff;stroke-width:2.5}
+svg .knob circle{fill:#1b2433;stroke:#3a475c}
+svg .lab{fill:#93a6ba;font:600 11px Inter,sans-serif}
+svg .lab.g{fill:var(--green);font-weight:500}
+.view{background:var(--card);border:1px solid var(--edge);border-radius:18px;padding:16px}
+.view .scr{border-radius:10px;overflow:hidden;border:6px solid #000;box-shadow:0 0 0 1px var(--edge),0 18px 50px -20px rgba(111,245,168,.35);aspect-ratio:1;background:#000}
+.view .scr img{display:block;width:100%;height:100%;image-rendering:pixelated}
+.view h3{margin:14px 0 2px}
+.view .what{color:var(--dim);font-size:14px;margin:0 0 10px}
+.kn{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kn div{background:var(--bg2);border:1px solid var(--edge);border-radius:10px;padding:8px 10px;font-size:13.5px;line-height:1.4}
+.kn b{display:block;color:var(--green);font-weight:600;font-size:13px}
+.scroll{display:flex;gap:8px;overflow-x:auto;padding:12px max(5vw,16px);border-bottom:1px solid var(--edge);background:var(--bg)}
+.scroll a{flex:none;color:var(--dim);text-decoration:none;font-size:14px;padding:8px 12px;border:1px solid var(--edge);border-radius:999px}
+.scroll a:hover{color:var(--ink);border-color:var(--green)}
+@media(min-width:900px){.scroll{position:sticky;top:0;z-index:2;background:rgba(6,10,19,.92);backdrop-filter:blur(8px)}}
+html{scroll-padding-top:72px}
+.pages{display:grid;gap:18px}
+.pg{display:grid;grid-template-columns:200px minmax(0,1fr);gap:22px;background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:18px}
+.pg img{width:200px;height:200px;border-radius:8px;border:4px solid #000;image-rendering:pixelated}
+.pg .tag{display:inline-block;background:#183a2b;color:var(--green);font:600 13px Inter;padding:3px 9px;border-radius:6px;margin-right:8px;vertical-align:3px}
+.pg .sky-note{color:var(--dim);margin:8px 0 12px}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--edge);vertical-align:top}
+th{color:var(--dim);font-weight:500;font-size:13px}
+td:first-child{font-weight:600;color:var(--ink);width:7.5em}
+@media(min-width:601px){td:first-child{white-space:nowrap}}
+pre{background:var(--bg2);border:1px solid var(--edge);border-radius:10px;padding:12px 14px;overflow-x:auto}
+.quick{margin:14px 6px 4px;padding:0 0 0 18px;color:var(--ink);font-size:15px}.quick li{margin:4px 0}.quick b{color:var(--green);font-weight:600}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.card{background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:18px}
+.card img{width:100%;aspect-ratio:1;border-radius:8px;border:4px solid #000;margin-bottom:12px;image-rendering:pixelated}
+.card p{color:var(--dim);font-size:15px}
+kbd{font:600 13px Inter;background:#1a2437;border:1px solid #2c3a55;border-bottom-width:2px;border-radius:5px;padding:1px 6px}
+.note{color:var(--dim);font-size:14px}
+footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
+@media(max-width:900px){.top{grid-template-columns:minmax(0,1fr)}.grid3{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.pg{grid-template-columns:minmax(0,1fr)}.pg img{width:100%;height:auto;aspect-ratio:1}.kn{grid-template-columns:minmax(0,1fr)}
+  table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start;width:auto}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--dim);font-weight:500}.stack td:empty{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+
+<header class="band sky">
+  <div class="wrap">
+    <h1>AURORA on the FM-1</h1>
+    <p class="lede">An ambient machine that plays by itself: slow pads drifting through a scale over a drone, bells falling into a long echo, wind, all inside a very large reverb. Every button opens a page of four knobs, and each page puts its own light into the aurora. Press a button on the panel to see what it does.</p>
+    <div class="top">
+      <div class="panel">
+        <svg id="panel" viewBox="0 0 640 300" role="group" aria-label="The FM-1's panel: buttons open AURORA's pages"></svg>
+        <p class="hint">Green labels are what AURORA does with each control. The same button again goes back to the sky.</p>
+        <ol class="quick">
+          <li>Switch on: it starts playing by itself in the BOREAL scene.</li>
+          <li>Turn <b>ALGORITHM</b> for another scene, <b>SELECT</b> for another scale, <b>PRESETS</b> for another root.</li>
+          <li>Press a page button (<b>FX</b>, <b>ENV</b>, <b>EDIT</b>, <b>LFO</b>, <b>GLO</b>, <b>SEQ</b>) and turn <b>KNOB 1–4</b>; <b>HOME</b> brings back the sky alone.</li>
+          <li>Play the keys; tap <b>SCL</b> to latch notes (HOLD) or strike bells (BELLS).</li>
+          <li><b>REC</b> freezes it, <b>ARP</b> drops a fall of bells, <b>SAVE</b> keeps it for next time.</li>
+        </ol>
+      </div>
+      <div class="view" aria-live="polite">
+        <div class="scr"><img id="v-img" src="screens/home.png" alt="" width="480" height="480"></div>
+        <h3 id="v-title"></h3>
+        <p class="what" id="v-what"></p>
+        <div class="kn" id="v-kn"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="scroll" aria-label="Sections">
+  <a href="#pages">The seven pages</a><a href="#controls">The other controls</a><a href="#keys">The keys</a><a href="#sky">Freeze, hold, bells</a><a href="#scenes">Scenes and scales</a><a href="#browser">In the browser</a><a href="#install">Install</a>
+</nav>
+
+<section class="band" id="pages">
+  <div class="wrap">
+    <h2>The seven pages</h2>
+    <p class="note">KNOB 1 to KNOB 4 always turn the four controls of the page that is open; the screen shows their names along the bottom and a bar for each. Each knob runs 0 to 127.</p>
+    <div class="pages" id="pagelist"></div>
+  </div>
+</section>
+
+<section class="band" id="controls" style="background:var(--bg2)">
+  <div class="wrap">
+    <h2>The other controls</h2>
+    <table class="stack">
+      <thead><tr><th>Control</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>ALGORITHM</td><td>The scene: its sound, its sky's colours, its scale and root, and where its knobs start. Turning it resets the knobs to the scene's.</td></tr>
+        <tr><td>SELECT</td><td>The scale: Lydian, major, major pentatonic, suspended, Dorian, minor, minor pentatonic, Phrygian, Hirajoshi, whole tone, fifths.</td></tr>
+        <tr><td>PRESETS</td><td>The root note, a semitone at a time. The drone slides to the new root.</td></tr>
+        <tr><td>OCT− / OCT+</td><td>The register, one octave down or up. Both together: back to the middle.</td></tr>
+        <tr><td>SCL</td><td>Tap: the keys' mode (PADS, HOLD, BELLS). Hold it and press a key: that key becomes the root.</td></tr>
+        <tr><td>PLAY</td><td>The machine plays or waits. Waiting, the aurora sinks low; the keys still play.</td></tr>
+        <tr><td>REC</td><td>Freeze: the reverb holds what is in it, for ever, and the sky turns to ice.</td></tr>
+        <tr><td>ARP</td><td>A fall of bells from the top of the scale: a shower of shooting stars.</td></tr>
+        <tr><td>SAVE</td><td>Keeps everything (scene, scale, root, octave, key mode, all 28 knobs) as the power-on state. Save while it is quiet: writing the flash stops the sound for a moment.</td></tr>
+        <tr><td>MASTER</td><td>The volume.</td></tr>
+        <tr><td>MIDI in</td><td>Notes play the pads, as they come (not snapped to the scale).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="band" id="keys">
+  <div class="wrap">
+    <h2>The keys</h2>
+    <p>The 27 keys run from F3 to G5, and every note is snapped to the scale. Tap SCL to move between three modes; the mode shows at the top of the screen, and SCL's light shows it too.</p>
+    <table class="stack">
+      <thead><tr><th>Mode</th><th>A key</th><th>SCL light</th></tr></thead>
+      <tbody>
+        <tr><td>PADS</td><td>Plays a pad note for as long as it is held, with a third of the page's ATTACK and the full RELEASE.</td><td>Off</td></tr>
+        <tr><td>HOLD</td><td>Latches its note: it rings until you press that key again. Held notes stand as pillars of light, and their keys stay lit. Leaving HOLD lets them all go.</td><td>On</td></tr>
+        <tr><td>BELLS</td><td>Strikes a bell an octave up. The star nearest its note flares and a shooting star crosses.</td><td>Blinking</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="band" id="sky" style="background:var(--bg2)">
+  <div class="wrap">
+    <h2>Freeze, hold and a fall of bells</h2>
+    <p class="note">These change the sky on every page, HOME included.</p>
+    <div class="grid3">
+      <div class="card"><img src="screens/freeze.png" alt="The sky frozen: pale blue curtains, still icy water" loading="lazy"><h3>Freeze (REC)</h3><p>The reverb holds for ever. The curtains slow to a stop and turn pale blue, the water goes still under a sheet of ice with faint cracks, and sparks of frost come and go. FROZEN shows at the top right.</p></div>
+      <div class="card"><img src="screens/hold.png" alt="Three pillars of light rising from the horizon" loading="lazy"><h3>Hold (SCL, then keys)</h3><p>Each latched note becomes a pillar of light rising from the horizon at its pitch, twinkling as it goes up, while it rings.</p></div>
+      <div class="card"><img src="screens/shower.png" alt="Shooting stars falling across the aurora" loading="lazy"><h3>A fall of bells (ARP)</h3><p>Six bells fall down the scale. Every one sends shooting stars down the sky and makes the aurora flare and reach lower.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="scenes">
+  <div class="wrap">
+    <h2>Scenes and scales</h2>
+    <table class="stack">
+      <thead><tr><th>Scene</th><th>Key</th><th>Sound</th><th>Sky</th></tr></thead>
+      <tbody id="scenelist"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="band" id="browser" style="background:var(--bg2)">
+  <div class="wrap">
+    <h2>In the browser</h2>
+    <p>The same firmware runs in a browser on an emulated panel: open <code>web/dist/index.html</code>. Drag the knobs, press the buttons, or use the computer keyboard:</p>
+    <table class="stack">
+      <thead><tr><th>Keys</th><th>Does</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Z</kbd>–<kbd>/</kbd>, <kbd>S</kbd>–<kbd>'</kbd>, <kbd>Q</kbd>–<kbd>O</kbd></td><td>The 27 keys</td></tr>
+        <tr><td><kbd>1</kbd>–<kbd>7</kbd></td><td>The pages: sky, effects, pad shape, pad tone, motion, drone, machine</td></tr>
+        <tr><td><kbd>Tab</kbd></td><td>SCL: the keys' mode</td></tr>
+        <tr><td><kbd>←</kbd> <kbd>→</kbd> · <kbd>↑</kbd> <kbd>↓</kbd></td><td>Scene · scale</td></tr>
+        <tr><td><kbd>Space</kbd> · <kbd>Shift</kbd> · <kbd>Enter</kbd></td><td>Play · freeze · a fall of bells</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="band" id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p>Get <code>aurora-X.Y.fwsc</code> from the repository's Releases (GitHub builds it from source with GR!MM's build system and its chip checks). With Python 3, <code>pip install mido python-rtmidi</code> and a checkout of <a href="https://github.com/GRiMMBIENT/grimm">GR!MM</a>:</p>
+    <pre><code>python3 tools/fm1_install.py aurora-X.Y.fwsc</code></pre>
+    <p>AURORA keeps GR!MM's update and recovery code, so any FM-1 firmware can be installed over it again. Hold OCT− while switching on for the USB rescue, and the <a href="https://thefirmwarehub.com/">Firmware Hub</a>'s Rescue page brings back a stuck FM-1. The package carries GR!MM's identity, so the hub shows GR!MM as installed. SAVE writes the settings sector GR!MM also uses: GR!MM's own power-on state starts fresh after it.</p>
+    <p class="note">Unofficial firmware, not made or endorsed by M-VAVE: install at your own risk.</p>
+  </div>
+</section>
+
+<footer class="band"><div class="wrap">AURORA is free software (GPL-3.0), built on GR!MM's platform, DSP and reverb, which stand on Felucca, Dinghy, SLOOP and X0X. <a href="https://github.com/andrewdamelio/aurora-fm1">github.com/andrewdamelio/aurora-fm1</a></div></footer>
+
+<script>
+{
+const PAGES = [
+  { btn: "HOME", name: "Sky", img: "home", sky: "The aurora alone: no overlay. The curtains brighten with the sound, and each pad voice raises a column of light where its note is.",
+    k: [["DENSITY", "How often the machine starts a pad note: every ~14 s at 0 to under a second at 127. Bells come a little more often too."],
+        ["BRIGHT", "Opens the pads' filter, the drone, the wind and the reverb's damping."],
+        ["SPACE", "The reverb: from ~2 s to ~30 s, and how much of it you hear."],
+        ["DRIFT", "The pads' slow lean in pitch and their stereo sway, and how fast the sky moves (0.4 to 1.6 times)."]] },
+  { btn: "FX", name: "Effects", img: "fx", sky: "Each bell drops a ripple on the water, with more rings for its echoes; snow streaks along on the wind; the horizon glows with the drone; the stars brighten with BELLS.",
+    k: [["ECHO", "The ping-pong echo (0.5 s left, 0.375 s right): how much goes in, how long it repeats, how loud it returns."],
+        ["BELLS", "Off at 0, then a bell every ~12 s down to about one a second."],
+        ["WIND", "The wind: noise through a wandering band."],
+        ["DRONE", "The drone's level."]] },
+  { btn: "ENV", name: "Pad shape", img: "env", sky: "The pads' envelope drawn as a ridge of light: up over ATTACK, along for LENGTH, down over RELEASE. Each sounding voice is a point riding it.",
+    k: [["ATTACK", "How long a pad takes to swell in: 0.1 s to 8 s. Keys use a third of it."],
+        ["RELEASE", "How long it takes to fade: 0.5 s to 16 s. Turning it changes notes already fading."],
+        ["LENGTH", "How long the machine holds its notes: a quarter to 1.75 times the usual."],
+        ["PADS", "The pads' level, from silent to 1.5 times (85 is the usual)."]] },
+  { btn: "EDIT", name: "Pad tone", img: "edit", sky: "The pads' waveform on the horizon and in the water: sine to saw, its harmonics up to BRIGHT, a peak at the resonance, the octaves of SHIMMER. A dimmer twin drifts against it as fast as DETUNE beats.",
+    k: [["WAVE", "Sine at 0 to two detuned saws at 127."],
+        ["DETUNE", "How far the two oscillators spread: 1 to 31 cents either side."],
+        ["RESO", "The filter's resonance (on the saw side of WAVE)."],
+        ["SHIMMER", "Adds the octave and the octave above, sent mostly into the reverb: a glassy halo."]] },
+  { btn: "LFO", name: "Motion", img: "lfo", sky: "Three ribbons of the voices' movement, flowing at RATE: SWEEP, WIDTH, and a third that pulses with TREMOLO. The curtains pulse with it too.",
+    k: [["RATE", "How fast the voices' slow movements run: a quarter to 4 times."],
+        ["SWEEP", "How far the filter moves up and down."],
+        ["WIDTH", "The stereo spread and sway: 0 is mono, 127 is wide."],
+        ["TREMOLO", "A slow swell and dip in each voice's level."]] },
+  { btn: "GLO", name: "Drone", img: "glo", sky: "Rings rising from under the horizon like a sun: the root, its fifth and octave, a wide one for SUB. They breathe with BREATH and glow brighter as the drone gets louder.",
+    k: [["TONE", "The drone's filter, from dark to open."],
+        ["FIFTH", "The fifth and the octave that come and go above the drone: none to twice."],
+        ["SUB", "A sine an octave below the drone."],
+        ["BREATH", "The drone's level swelling and sinking, every ~9 s to ~5 s, deeper as it rises."]] },
+  { btn: "SEQ", name: "Machine", img: "seq", sky: "The scale as an arch of stars over the range the machine uses. The chord it leans on is bright, the notes it is playing flare, and a thread joins them.",
+    k: [["CHORDS", "How often the harmony moves to another degree: every ~60 s down to ~8 s."],
+        ["RANGE", "How high the machine wanders: from one to four octaves of the scale."],
+        ["VOICES", "How many pad notes the machine plays at once: 1 to 6."],
+        ["ANSWER", "How often a bell is answered by another a step or two up."]] },
+];
+const SCENES = [
+  ["Boreal", "D Lydian", "Half saw, half sine", "Green to teal to violet"],
+  ["Ember", "A Dorian", "Bright saws, an octave down", "Gold, orange, magenta"],
+  ["Abyss", "C minor", "Mostly sine, long and low", "Deep blues"],
+  ["Halo", "F major pentatonic", "Sines with shimmer, an octave up", "Pale pinks and lilac"],
+  ["Glacier", "G suspended", "Pure sines with shimmer", "Ice cyan and blue"],
+  ["Nocturne", "E Hirajoshi", "Soft saws", "Magenta, purple, blue"],
+];
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+document.getElementById("pagelist").innerHTML = PAGES.map((p, i) => `
+  <article class="pg" id="page-${p.btn.toLowerCase()}">
+    <img src="screens/${p.img}.png" alt="The ${esc(p.name)} page on the FM-1's screen" loading="lazy" width="200" height="200">
+    <div><h3><span class="tag">${p.btn}</span>${esc(p.name)}</h3>
+      <p class="sky-note">${esc(p.sky)}</p>
+      <table class="stack"><thead><tr><th>Knob</th><th>Turns</th></tr></thead><tbody>
+        ${p.k.map(([n, d], j) => `<tr><td>${j + 1} · ${n}</td><td>${esc(d)}</td></tr>`).join("")}
+      </tbody></table></div>
+  </article>`).join("");
+document.getElementById("scenelist").innerHTML = SCENES.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
+
+// the panel: knobs, screen, the 2 x 6 grid of buttons, OCT, the keys (positions after the FM-1's)
+const svg = document.getElementById("panel"), NS = "http://www.w3.org/2000/svg";
+const BTNS = [["FX", "EFFECTS", 1], ["SCL", "KEYS"], ["ENV", "SHAPE", 2], ["LFO", "MOTION", 4], ["EDIT", "TONE", 3], ["GLO", "DRONE", 5],
+              ["HOME", "SKY", 0], ["SAVE", "SAVE"], ["ARP", "BELLS"], ["SEQ", "MACHINE", 6], ["PLAY", "PLAY"], ["REC", "FREEZE"]];
+let h = "";
+const knob = (x, y, r, a, b) => h += `<g class="knob"><text class="lab" x="${x}" y="${y - r - 18}" text-anchor="middle">${a}</text><text class="lab g" x="${x}" y="${y - r - 6}" text-anchor="middle">${b}</text><circle cx="${x}" cy="${y}" r="${r}"/><line x1="${x}" y1="${y - r + 4}" x2="${x}" y2="${y - r + 11}" stroke="#6ff5a8" stroke-width="2.5" stroke-linecap="round"/></g>`;
+knob(42, 70, 16, "MASTER", "VOLUME"); knob(108, 70, 16, "SELECT", "SCALE"); knob(42, 140, 16, "PRESETS", "ROOT"); knob(108, 140, 16, "ALGORITHM", "SCENE");
+["1", "2", "3", "4"].forEach((n, i) => knob(388 + i * 66, 70, 15, "KNOB " + n, "PAGE"));
+h += `<rect x="150" y="24" width="186" height="186" rx="10" fill="#000" stroke="#2b3850"/><image id="p-scr" href="screens/home.png" x="157" y="31" width="172" height="172" preserveAspectRatio="none" style="image-rendering:pixelated"/>`;
+const oct = (x, a, b, sub) => h += `<g class="btn" data-id="${a}" tabindex="0" role="button" aria-label="${a}: ${sub}"><rect x="${x}" y="176" width="52" height="30" rx="6"/><text x="${x + 26}" y="189" text-anchor="middle">${b}</text><text class="s" x="${x + 26}" y="201" text-anchor="middle">${sub}</text></g>`;
+oct(22, "OCT-", "OCT−", "DOWN"); oct(96, "OCT+", "OCT+", "UP");
+BTNS.forEach(([a, b, pg], i) => {
+  const x = 360 + (i % 6) * 46, y = 110 + Math.floor(i / 6) * 50;
+  h += `<g class="btn" data-id="${a}" ${pg !== undefined ? `data-page="${pg}"` : ""} tabindex="0" role="button" aria-label="${a}: ${b}"><rect x="${x}" y="${y}" width="40" height="40" rx="6"/><text x="${x + 20}" y="${y + 18}" text-anchor="middle">${a}</text><text class="s" x="${x + 20}" y="${y + 31}" text-anchor="middle">${b}</text></g>`;
+});
+h += `<rect x="18" y="222" width="604" height="68" rx="10" fill="#0a0f19" stroke="#1f2c45"/>`;
+for (let i = 0; i < 16; i++) h += `<rect x="${28 + i * 37.2}" y="258" width="26" height="26" rx="13" fill="#e9e5db"/>`;
+[0, 1, 2, 4, 5, 7, 8, 9, 11, 12, 14].forEach((a) => h += `<rect x="${28 + (a + 1) * 37.2 - 13 + 0}" y="228" width="26" height="26" rx="13" fill="#e9e5db"/>`);
+h += `<text class="lab g" x="480" y="216" text-anchor="middle">KEYS: PADS · HOLD · BELLS (SCL)</text>`;
+svg.innerHTML = h;
+
+const OTHER = { SCL: ["SCL", "Tap: the keys' mode, PADS, HOLD or BELLS. Hold it and press a key: that key is the root.", "hold"],
+  SAVE: ["SAVE", "Keeps everything as the power-on state.", null], ARP: ["ARP: a fall of bells", "Six bells fall down the scale, and the sky fills with shooting stars.", "shower"],
+  PLAY: ["PLAY", "The machine plays or waits. Waiting, the aurora sinks low.", null], REC: ["REC: freeze", "The reverb holds for ever, and the sky turns to ice.", "freeze"],
+  "OCT-": ["OCT−", "The register an octave down. With OCT+: the middle.", null], "OCT+": ["OCT+", "The register an octave up. With OCT−: the middle.", null] };
+const img = document.getElementById("v-img"), scr = document.getElementById("p-scr");
+function show(id) {
+  const g = svg.querySelector(`[data-id="${id}"]`), pg = g && g.dataset.page;
+  svg.querySelectorAll(".btn").forEach((b) => b.classList.toggle("on", b === g));
+  let title, what, shot, kn = "";
+  if (pg !== undefined) {
+    const p = PAGES[+pg];
+    title = `${p.btn} · ${p.name}`; what = p.sky; shot = p.img;
+    kn = p.k.map(([n, d], j) => `<div><b>${j + 1} · ${n}</b>${esc(d)}</div>`).join("");
+  } else { [title, what, shot] = OTHER[id]; }
+  document.getElementById("v-title").textContent = title;
+  document.getElementById("v-what").textContent = what;
+  document.getElementById("v-kn").innerHTML = kn;
+  if (shot) { img.src = `screens/${shot}.png`; scr.setAttribute("href", `screens/${shot}.png`); }
+  img.alt = `The FM-1's screen: ${title}`;
+}
+svg.addEventListener("click", (e) => { const g = e.target.closest(".btn"); if (g) show(g.dataset.id); });
+svg.addEventListener("keydown", (e) => { const g = e.target.closest(".btn"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); show(g.dataset.id); } });
+show("HOME");
+}
+</script>
+</body>
+</html>
