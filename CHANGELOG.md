@@ -15,6 +15,10 @@
 
 **Loons you can hear.** Calls come more often (the first about 12 s after switch-on), louder and less buried in the reverb, with their own level on MIX 2.
 
+**New drum patterns, easier.** On the drums page, press ARP again for a new pattern. It comes in on the next downbeat, at full level, without leaving the page (HOME leaves). Turning BUSY still makes one too.
+
+**SEL's light** is steady in any key mode but PADS, instead of blinking. The screen says which mode you're in.
+
 **Moments, easier.**
 - They're on the first four **white** keys, F, G, A and B: hold SAVE and press one to keep a moment, hold HOME and press it to bring it back.
 - HOME now changes page when you let go, so recalling a moment doesn't move you off the page.

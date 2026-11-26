@@ -134,7 +134,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
         <tr><td>SCL</td><td>Tap: the keys' mode (PADS, HOLD, BELLS, CHOIR). Hold it and press a key: that key becomes the root.</td></tr>
         <tr><td>PLAY</td><td>The machine plays or waits. Waiting, the aurora sinks low; the keys still play.</td></tr>
         <tr><td>REC</td><td>Freeze: the reverb holds what is in it, for ever, and the sky turns to ice.</td></tr>
-        <tr><td>ARP</td><td>The drums' page: TEMPO, LEVEL, BUSY, SWING. LEVEL up from 0 starts them, 0 stops them. Its light blinks the beat while they play.</td></tr>
+        <tr><td>ARP</td><td>The drums' page: TEMPO, TONE, BUSY, SWING. ARP again on that page: a new pattern, from the next downbeat. MIX 2's DRUMS starts and stops them. Its light blinks the beat while they play.</td></tr>
         <tr><td>SAVE</td><td>Tap: keeps everything (scene, scale, root, octave, key mode, all the knobs) as the power-on state. Hold it and press F, G, A or B (the first four white keys): keeps that as moment 1 to 4. Writing the flash stops the sound for a moment.</td></tr>
         <tr><td>HOME</td><td>The sky; press it again for MIX 1, a third time for MIX 2, once more back to the sky. Hold it and press F, G, A or B: back to that moment (EMPTY if none is kept there). In the browser: Alt+1–4 brings a moment back, Alt+Shift+1–4 keeps one.</td></tr>
         <tr><td>FX</td><td>The effects page; press it again for the NIGHT page (its light and HOME's together); a third time, back to the sky.</td></tr>
@@ -149,14 +149,14 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
 <section class="band" id="keys">
   <div class="wrap">
     <h2>The keys</h2>
-    <p>The 27 keys run from F3 to G5, and every note is snapped to the scale. Tap SCL to move between four modes; the mode shows at the top of the screen, and SCL's light shows it too.</p>
+    <p>The 27 keys run from F3 to G5, and every note is snapped to the scale. Tap SCL to move between four modes; the mode shows at the top of the screen, and SCL's light is on in any mode but PADS.</p>
     <table class="stack">
       <thead><tr><th>Mode</th><th>A key</th><th>SCL light</th></tr></thead>
       <tbody>
         <tr><td>PADS</td><td>Plays a pad note for as long as it is held, with a third of the page's ATTACK and the full RELEASE.</td><td>Off</td></tr>
         <tr><td>HOLD</td><td>Latches its note: it rings until you press that key again. Held notes stand as pillars of light, and their keys stay lit. Leaving HOLD lets them all go.</td><td>On</td></tr>
-        <tr><td>BELLS</td><td>Strikes a bell an octave up. The star nearest its note flares and a shooting star crosses.</td><td>Blinking</td></tr>
-        <tr><td>CHOIR</td><td>Sings the note, an octave down, for as long as the key is held: three real singers to a note, a little apart, each with a vibrato, men's voices below middle C and women's above, the vowel drifting through A E I O U, deep in the reverb. Up to four notes. A shaft of pale light comes down from the top of the sky where each note is.</td><td>Slow blink</td></tr>
+        <tr><td>BELLS</td><td>Strikes a bell an octave up. The star nearest its note flares and a shooting star crosses.</td><td>On</td></tr>
+        <tr><td>CHOIR</td><td>Sings the note, an octave down, for as long as the key is held: three real singers to a note, a little apart, each with a vibrato, men's voices below middle C and women's above, the vowel drifting through A E I O U, deep in the reverb. Up to four notes. A shaft of pale light comes down from the top of the sky where each note is.</td><td>On</td></tr>
       </tbody>
     </table>
   </div>
@@ -266,7 +266,7 @@ const PAGES = [
         ["RANGE", "How high the machine wanders: from one to four octaves of the scale."],
         ["VOICES", "How many pad notes the machine plays at once: 1 to 6."],
         ["EVOLVE", "How much the piece changes over time. 0 plays as set. Higher: sections come more often (calm, bloom, night, sparkle, drift), each leaning density, brightness, bells, wind, drone and voices its way without moving your knobs; the motif changes; chords bloom; pads add sevenths; the drum pattern drifts; above ~70 the key moves now and then (NEW KEY shows on the screen)."]] },
-  { btn: "ARP", name: "Drums", img: "drums", sky: "MIX 2's DRUMS up from 0 starts them on a new pattern, 0 stops them; turning BUSY makes a new pattern. Soft drums made for the haze: a low heartbeat, a brushed rim, a shaker and mallets that play the chord and the motif into the echo, all darkened by BRIGHT and deep in the reverb. Each step plays only as often as its chance, a little loose, so no two bars match; calm sections thin them; EVOLVE moves a step every four bars; they ease in when started. On screen: the pattern as rows of lights (mallets, shaker, rim, heartbeat), the likelier steps brighter, the step playing in white.",
+  { btn: "ARP", name: "Drums", img: "drums", sky: "MIX 2's DRUMS up from 0 starts them on a new pattern, 0 stops them. Press ARP again on this page for a new pattern (it comes in on the next downbeat; HOME leaves the page); turning BUSY makes one too. Soft drums made for the haze: a low heartbeat, a brushed rim, a shaker and mallets that play the chord and the motif into the echo, all darkened by BRIGHT and deep in the reverb. Each step plays only as often as its chance, a little loose, so no two bars match; calm sections thin them; EVOLVE moves a step every four bars; they ease in when started. On screen: the pattern as rows of lights (mallets, shaker, rim, heartbeat), the likelier steps brighter, the step playing in white.",
     k: [["TEMPO", "60 to 140 BPM (72 to start, mostly in half time)."],
         ["TONE", "The dark filter over them all: muffled to open."],
         ["BUSY", "How full the pattern is: more shaker, ghost rims, mallets, a third heartbeat. Turning it makes a new pattern."],

@@ -615,7 +615,13 @@ static void drums_hit(uint32_t f, int32_t a)
 }
 static void drums_step(void)                    /* a new step: what plays of it, and when */
 {
-    uint32_t s = dm.step, f = apat[s];
+    uint32_t s = dm.step, f;
+    if (s == 0u && g_dgen != dm.gen) {          /* a new pattern while they play: from this downbeat, no easing in */
+        uint32_t k;
+        dm.gen = g_dgen;
+        for (k = 0; k < 16u; k++) apat[k] = dpat[k], aprob[k] = dprob[k];
+    }
+    f = apat[s];
     int32_t pr = aprob[s], keep = sec_drums;
     if (s == 0u && (dm.bar & 3u) == 0u && dm.on) {   /* every four bars EVOLVE moves a step (not the downbeat) */
         int32_t ev = par[P_EVOLVE];
@@ -649,11 +655,10 @@ static void drums_render(void)
         dm.moff = 0;
     }
     if (dm.mn && !dm.pamp) mo(0x83, dm.mn - 1, 64), dm.mn = 0;
-    if (g_dgen != dm.gen) {                     /* a new pattern: copy it, start from the top, ease in over a bar */
+    if (g_dgen != dm.gen && !dm.on) {           /* a new pattern before they start: take it (they ease in) */
         uint32_t k;
         dm.gen = g_dgen;
         for (k = 0; k < 16u; k++) apat[k] = dpat[k], aprob[k] = dprob[k];
-        dm.fade = 40;
     }
     if (g_drums && !dm.on) dm.on = 1, dm.step = 15, dm.pos = 0, dm.len = 1, dm.bar = 0, dm.fade = 40;
     if (!g_drums) dm.on = 0, dm.pend = 0, vis_step = -1;
@@ -2048,6 +2053,11 @@ static void app_main(void)
                                                  * NIGHT, then the sky */
             if (k != PG_HOME && k != PG_NIGHT && k != PG_MIX1 && k != PG_MIX2 && pressed & 1u << PAGE_BTN[k]) {
                 if (k == PG_FX) page = page == PG_FX ? PG_NIGHT : page == PG_NIGHT ? PG_HOME : PG_FX;
+                else if (k == PG_RHY && page == PG_RHY) {   /* ARP on the drums' page: a new pattern (HOME leaves) */
+                    drums_new();
+                    hud_msg("DRUMS", g_drums ? "NEW PATTERN" : "NEW PATTERN READY", 1600);
+                    continue;
+                }
                 else page = page == k ? PG_HOME : k;
                 page_t = now;
                 if (page == PG_HOME) hud_status(3000);
@@ -2214,7 +2224,7 @@ static void app_main(void)
             fm1_led_key(BTN_PLAY, g_run);
             fm1_led_key(BTN_REC, g_freeze);
             fm1_led_key(BTN_ARP, g_drums ? vis_step >= 0 && (vis_step & 3) < 2 : page == PG_RHY);   /* (playing: it blinks the beat) */
-            fm1_led_key(BTN_SEL, (int)(fm1_in.buttons >> BTN_SEL & 1u) || (kmode == KM_HOLD) || (kmode == KM_BELLS && (now & 512u)) || (kmode == KM_CHOIR && (now & 1536u) != 0u));
+            fm1_led_key(BTN_SEL, (int)(fm1_in.buttons >> BTN_SEL & 1u) || (kmode != KM_PADS));   /* (lit: the keys are not playing pads; the screen says which) */
         }
 
         /* the screen: a frame at most every FRAME_MS, a strip at a time (every third millisecond at most: the rest
