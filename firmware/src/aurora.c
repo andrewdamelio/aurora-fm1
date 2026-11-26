@@ -88,7 +88,9 @@ enum { PG_HOME, PG_FX, PG_ENV, PG_EDIT, PG_LFO, PG_GLO, PG_SEQ, PG_RHY, NPAGE };
 static const uint8_t PAGE_BTN[NPAGE] = {BTN_HOME, BTN_FX, BTN_ENV, BTN_EDIT, BTN_LFO, BTN_GLO, BTN_SEQ, BTN_ARP};
 static const char *const PAGE_NAME[NPAGE] = {"SKY", "EFFECTS", "PAD SHAPE", "PAD TONE", "MOTION", "DRONE", "MACHINE", "DRUMS"};
 enum { KM_PADS, KM_HOLD, KM_BELLS, NKMODE };
-static const char *const KM_NAME[NKMODE] = {"PADS", "HOLD", "BELLS"};
+static const char *const KM_NAME[NKMODE] = {"KEYS: PADS", "KEYS: HOLD", "KEYS: BELLS"};
+static const char *const KM_SAY[NKMODE] = {"KEYS PLAY PADS", "KEYS HOLD NOTES", "KEYS RING BELLS"};
+static const char *const KM_HOW[NKMODE] = {"", "", ""};
 
 static volatile int32_t par[NPARAM];            /* 0 .. 127 */
 static int32_t md[NPARAM];                      /* (the audio's) how the section leans each knob (x 256) */
@@ -1665,7 +1667,7 @@ static void app_main(void)
                     if (latched >> k & 1u) ev_put(64u + k, key_note[k], 0), key_note[k] = -1;
             latched = 0;
             kmode = (kmode + 1u) % NKMODE;
-            hud_msg("KEYS", KM_NAME[kmode], 2200);
+            hud_msg(KM_SAY[kmode], KM_HOW[kmode], 2600);
         }
         if (pressed & (1u << BTN_OCT_UP | 1u << BTN_OCT_DOWN)) {
             char r[4];
