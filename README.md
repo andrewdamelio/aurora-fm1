@@ -4,7 +4,7 @@ Ambient firmware for the M-VAVE FM-1. It plays by itself and never quite repeats
 
 ![AURORA running in the browser](docs/web.png)
 
-**[Play it in your browser](https://andrewdamelio.github.io/aurora-fm1/)** (the real firmware, no FM-1 needed) · **[The guide](https://andrewdamelio.github.io/aurora-fm1/help.html)**: every page, knob and button.
+**[Play it in your browser](https://andrewdamelio.github.io/aurora-fm1/web/dist/)** (the real firmware, no FM-1 needed) · **[The guide](https://andrewdamelio.github.io/aurora-fm1/docs/help.html)**: every page, knob and button.
 
 ## Controls
 
@@ -34,6 +34,6 @@ Any FM-1 firmware can go back on over it. If the FM-1 ever gets stuck, the [Firm
 ## Build
 
 - **FM-1 package:** GitHub Actions builds it on every branch push, and a `vX.Y` tag publishes a release. To build it yourself, run `tools/build_fwsc.sh`.
-- **Browser version:** `GRIMM=/path/to/grimm BIN=/path/to/node_modules/.bin ./build_web.sh`. Pushing to `main` deploys it, with the guide, to GitHub Pages.
+- **Browser version:** `GRIMM=/path/to/grimm BIN=/path/to/node_modules/.bin ./build_web.sh`. GitHub Pages serves `main`: the emulator at `web/dist/`, the guide at `docs/help.html`.
 
 GPL-3.0. Built on GR!MM's platform, DSP and reverb, which in turn build on Felucca, Dinghy, SLOOP and X0X. Not made or endorsed by M-VAVE.
