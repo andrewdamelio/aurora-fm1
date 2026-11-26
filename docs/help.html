@@ -135,8 +135,8 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
         <tr><td>PLAY</td><td>The machine plays or waits. Waiting, the aurora sinks low; the keys still play.</td></tr>
         <tr><td>REC</td><td>Freeze: the reverb holds what is in it, for ever, and the sky turns to ice.</td></tr>
         <tr><td>ARP</td><td>The drums' page: TEMPO, LEVEL, BUSY, SWING. LEVEL up from 0 starts them, 0 stops them. Its light blinks the beat while they play.</td></tr>
-        <tr><td>SAVE</td><td>Tap: keeps everything (scene, scale, root, octave, key mode, all the knobs) as the power-on state. Hold it and press one of the first four keys (F3 to G#3): keeps that as a moment. Writing the flash stops the sound for a moment.</td></tr>
-        <tr><td>HOME + key</td><td>Hold HOME and press one of the first four keys: back to that moment (EMPTY if none is kept there).</td></tr>
+        <tr><td>SAVE</td><td>Tap: keeps everything (scene, scale, root, octave, key mode, all the knobs) as the power-on state. Hold it and press F, G, A or B (the first four white keys): keeps that as moment 1 to 4. Writing the flash stops the sound for a moment.</td></tr>
+        <tr><td>HOME</td><td>The sky; press it again for MIX 1, a third time for MIX 2, once more back to the sky. Hold it and press F, G, A or B: back to that moment (EMPTY if none is kept there). In the browser: Alt+1–4 brings a moment back, Alt+Shift+1–4 keeps one.</td></tr>
         <tr><td>FX</td><td>The effects page; press it again for the NIGHT page (its light and HOME's together); a third time, back to the sky.</td></tr>
         <tr><td>MASTER</td><td>The volume.</td></tr>
         <tr><td>MIDI in</td><td>Notes play the pads, as they come (not snapped to the scale).</td></tr>
@@ -216,21 +216,36 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
 <script>
 {
 const PAGES = [
-  { btn: "HOME", name: "Sky", img: "home", sky: "The aurora alone: no overlay. The curtains brighten with the sound, and each pad voice raises a column of light where its note is.",
+  { btn: "HOME", name: "Sky", img: "home", sky: "The aurora alone: no overlay. The curtains brighten with the sound, and each pad voice raises a column of light where its note is. Press HOME again for the mix.",
     k: [["DENSITY", "How often the machine starts a pad note: every ~14 s at 0 to under a second at 127. Bells come a little more often too."],
         ["BRIGHT", "Opens the pads' filter, the drone, the wind and the reverb's damping."],
         ["SPACE", "The reverb: from ~2 s to ~30 s, and how much of it you hear."],
         ["DRIFT", "The pads' slow lean in pitch and their stereo sway, and how fast the sky moves (0.4 to 1.6 times)."]] },
-  { btn: "FX", name: "Effects", img: "fx", sky: "Each bell drops a ripple on the water, with more rings for its echoes; snow streaks along on the wind; the horizon glows with the drone; the stars brighten with BELLS.",
-    k: [["ECHO", "The ping-pong echo (0.5 s left, 0.375 s right): how much goes in, how long it repeats, how loud it returns."],
-        ["BELLS", "Off at 0, then a bell every ~12 s down to about one a second."],
-        ["WIND", "The wind: noise through a wandering band."],
+  { btn: "HOME ×2", name: "Mix 1", img: "mix1", sky: "Four columns of light rise from the lake, one over each knob: as tall as its level, glowing as that part sounds. SAVE's light is on.",
+    k: [["PADS", "The pads' level (85 is the usual; 0 silent)."],
+        ["BELLS", "The bells' level, the machine's and the keys'."],
+        ["CHOIR", "The choir's level, the keys' and the machine's swells."],
         ["DRONE", "The drone's level."]] },
+  { btn: "HOME ×3", name: "Mix 2", img: "mix2", sky: "The same columns for the other four. SAVE's and HOME's lights are on. HOME once more: back to the sky.",
+    k: [["WIND", "The wind."],
+        ["LAKE", "The water lapping and the crickets."],
+        ["LOONS", "The loons' calls."],
+        ["DRUMS", "The drums' level. 0 is off; up from 0 starts them on a new pattern."]] },
+  { btn: "FX", name: "Effects", img: "fx", sky: "Each bell drops a ripple on the water, with more rings for its echoes; snow streaks along on the wind; the horizon glows with the drone; the stars brighten with CHIMES.",
+    k: [["ECHO", "The ping-pong echo: how much goes in, how long it repeats, how loud it returns."],
+        ["CHIMES", "How often the machine rings a bell (or a phrase of the motif): off at 0, then every ~12 s down to about one a second."],
+        ["TIME", "The echo's length, ~0.16 s to ~0.73 s (the right side three quarters of the left). It glides when turned, like tape."],
+        ["TONE", "The echo's colour: dark (each repeat duller) to bright."]] },
+  { btn: "FX ×2", name: "Night", img: "night", sky: "Fireflies drift over the shore; each loon call sends rings across the water (on every page); with the sleep timer on, a crescent moon sets across the sky as the time runs out (MOON SETTING). FX's and HOME's lights are on.",
+    k: [["WAVES", "How rough the water is: calm, small laps every few seconds, to big ones every second."],
+        ["CALLS", "How often a loon calls from across the lake: two or three long tones on the scale, gliding, into the reverb and the echo. 0 never, up to about every 13 s."],
+        ["SWELLS", "How often the machine's choir swells in, softly, on a new chord: more in calm and night sections. It never takes a voice you are singing."],
+        ["SLEEP", "A sleep timer: 15, 30, 45, 60, 90 or 120 minutes (0 off). For the second half the machine thins out; for the last third (5 minutes at most) the sound fades and the aurora sinks to the stars; then quiet. PLAY wakes it. Never kept by SAVE."]] },
   { btn: "ENV", name: "Pad shape", img: "env", sky: "The pads' envelope drawn as a ridge of light: up over ATTACK, along for LENGTH, down over RELEASE. Each sounding voice is a point riding it.",
-    k: [["ATTACK", "How long a pad takes to swell in: 0.1 s to 8 s. Keys use a third of it."],
-        ["RELEASE", "How long it takes to fade: 0.5 s to 16 s. Turning it changes notes already fading."],
+    k: [["ATTACK", "How long the machine's pads take to swell in: 0.1 s to 8 s."],
+        ["RELEASE", "How long a pad or a choir note takes to fade: 0.5 s to 16 s."],
         ["LENGTH", "How long the machine holds its notes: a quarter to 1.75 times the usual."],
-        ["PADS", "The pads' level, from silent to 1.5 times (85 is the usual)."]] },
+        ["KEYS", "How fast the pads you play on the keys swell in: 0.1 s to 3 s."]] },
   { btn: "EDIT", name: "Pad tone", img: "edit", sky: "The pads' waveform on the horizon and in the water: sine to saw, its harmonics up to BRIGHT, a peak at the resonance, the octaves of SHIMMER. A dimmer twin drifts against it as fast as DETUNE beats.",
     k: [["WAVE", "Sine at 0 to two detuned saws at 127."],
         ["DETUNE", "How far the two oscillators spread: 1 to 31 cents either side."],
@@ -251,16 +266,11 @@ const PAGES = [
         ["RANGE", "How high the machine wanders: from one to four octaves of the scale."],
         ["VOICES", "How many pad notes the machine plays at once: 1 to 6."],
         ["EVOLVE", "How much the piece changes over time. 0 plays as set. Higher: sections come more often (calm, bloom, night, sparkle, drift), each leaning density, brightness, bells, wind, drone and voices its way without moving your knobs; the motif changes; chords bloom; pads add sevenths; the drum pattern drifts; above ~70 the key moves now and then (NEW KEY shows on the screen)."]] },
-  { btn: "ARP", name: "Drums", img: "drums", sky: "LEVEL up from 0 starts them on a new pattern, LEVEL at 0 stops them; turning BUSY makes a new pattern. Soft drums made for the haze: a low heartbeat, a brushed rim, a shaker and mallets that play the chord and the motif into the echo, all darkened by BRIGHT and deep in the reverb. Each step plays only as often as its chance, a little loose, so no two bars match; calm sections thin them; EVOLVE moves a step every four bars; they ease in when started. On screen: the pattern as rows of lights (mallets, shaker, rim, heartbeat), the likelier steps brighter, the step playing in white.",
+  { btn: "ARP", name: "Drums", img: "drums", sky: "MIX 2's DRUMS up from 0 starts them on a new pattern, 0 stops them; turning BUSY makes a new pattern. Soft drums made for the haze: a low heartbeat, a brushed rim, a shaker and mallets that play the chord and the motif into the echo, all darkened by BRIGHT and deep in the reverb. Each step plays only as often as its chance, a little loose, so no two bars match; calm sections thin them; EVOLVE moves a step every four bars; they ease in when started. On screen: the pattern as rows of lights (mallets, shaker, rim, heartbeat), the likelier steps brighter, the step playing in white.",
     k: [["TEMPO", "60 to 140 BPM (72 to start, mostly in half time)."],
-        ["LEVEL", "How loud the drums are. 0 is off; up from 0 starts them on a new pattern."],
+        ["TONE", "The dark filter over them all: muffled to open."],
         ["BUSY", "How full the pattern is: more shaker, ghost rims, mallets, a third heartbeat. Turning it makes a new pattern."],
         ["SWING", "How late the off-beats come."]] },
-  { btn: "FX ×2", name: "Night", img: "night", sky: "Press FX a second time. Fireflies drift over the shore, more with LAKE; each loon call sends rings across the water (on every page); with the sleep timer on, a crescent moon sets across the sky as the time runs out, and the screen says MOON SETTING.",
-    k: [["LAKE", "Water lapping at the shore on both sides, and crickets that come and go over minutes. 0 is off."],
-        ["LOONS", "How often a loon calls from far off: two or three long tones on the scale, gliding, into the reverb and the echo. 0 never, up to about every 12 s."],
-        ["CHOIR", "How often the machine's own choir swells in, softly, on a new chord: more in calm and night sections. It never takes a voice you are singing on the keys."],
-        ["SLEEP", "A sleep timer: 15, 30, 45, 60, 90 or 120 minutes (0 off). For the second half the machine thins out, for the last third (5 minutes at most) the sound fades, the aurora sinks to the stars, then quiet. PLAY wakes it. Never kept by SAVE."]] },
 ];
 const SCENES = [
   ["Boreal", "D Lydian", "Half saw, half sine", "Green to teal to violet"],
@@ -285,8 +295,8 @@ document.getElementById("scenelist").innerHTML = SCENES.map((r) => `<tr>${r.map(
 
 // the panel: knobs, screen, the 2 x 6 grid of buttons, OCT, the keys (positions after the FM-1's)
 const svg = document.getElementById("panel"), NS = "http://www.w3.org/2000/svg";
-const BTNS = [["FX", "EFFECTS", 1], ["SCL", "KEYS"], ["ENV", "SHAPE", 2], ["LFO", "MOTION", 4], ["EDIT", "TONE", 3], ["GLO", "DRONE", 5],
-              ["HOME", "SKY", 0], ["SAVE", "SAVE"], ["ARP", "DRUMS", 7], ["SEQ", "MACHINE", 6], ["PLAY", "PLAY"], ["REC", "FREEZE"]];
+const BTNS = [["FX", "EFFECTS", 3], ["SCL", "KEYS"], ["ENV", "SHAPE", 5], ["LFO", "MOTION", 7], ["EDIT", "TONE", 6], ["GLO", "DRONE", 8],
+              ["HOME", "SKY", 0], ["SAVE", "SAVE"], ["ARP", "DRUMS", 10], ["SEQ", "MACHINE", 9], ["PLAY", "PLAY"], ["REC", "FREEZE"]];
 let h = "";
 const knob = (x, y, r, a, b) => h += `<g class="knob"><text class="lab" x="${x}" y="${y - r - 18}" text-anchor="middle">${a}</text><text class="lab g" x="${x}" y="${y - r - 6}" text-anchor="middle">${b}</text><circle cx="${x}" cy="${y}" r="${r}"/><line x1="${x}" y1="${y - r + 4}" x2="${x}" y2="${y - r + 11}" stroke="#6ff5a8" stroke-width="2.5" stroke-linecap="round"/></g>`;
 knob(42, 70, 16, "MASTER", "VOLUME"); knob(108, 70, 16, "SELECT", "SCALE"); knob(42, 140, 16, "PRESETS", "ROOT"); knob(108, 140, 16, "ALGORITHM", "SCENE");

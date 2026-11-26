@@ -170,17 +170,18 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--edge); border-radius: 
     </dl>
     <dl>
       <dt>HOME · Sky</dt><dd>DENSITY · BRIGHT · SPACE · DRIFT. The aurora alone</dd>
-      <dt>FX · Effects</dt><dd>ECHO · BELLS · WIND · DRONE. Ripples, snow, the horizon glowing</dd>
-      <dt>FX again · Night</dt><dd>LAKE (water and crickets) · LOONS · CHOIR (the machine sings) · SLEEP (15–120 min). Fireflies; a moon sets as the timer runs</dd>
-      <dt>ENV · Pad shape</dt><dd>ATTACK · RELEASE · LENGTH · PADS. The envelope across the sky</dd>
+      <dt>HOME again · Mix</dt><dd>MIX 1: PADS · BELLS · CHOIR · DRONE; MIX 2 (HOME a third time): WIND · LAKE · LOONS · DRUMS (0: off). Columns of light rise from the lake</dd>
+      <dt>FX · Effects</dt><dd>ECHO · CHIMES (how often bells ring) · TIME · TONE (the echo's)</dd>
+      <dt>FX again · Night</dt><dd>WAVES · CALLS (loons) · SWELLS (the machine's choir) · SLEEP (15–120 min). Fireflies; a moon sets as the timer runs</dd>
+      <dt>ENV · Pad shape</dt><dd>ATTACK · RELEASE · LENGTH · KEYS (how fast the keys' notes swell in). The envelope across the sky</dd>
       <dt>EDIT · Pad tone</dt><dd>WAVE · DETUNE · RESO · SHIMMER. The waveform on the horizon</dd>
       <dt>LFO · Motion</dt><dd>RATE · SWEEP · WIDTH · TREMOLO. Ribbons of movement</dd>
       <dt>GLO · Drone</dt><dd>TONE · FIFTH · SUB · BREATH. Rings rising from the horizon</dd>
       <dt>SEQ · Machine</dt><dd>CHORDS · RANGE · VOICES · EVOLVE. The scale as a constellation</dd>
       <dt>SCL tap</dt><dd>the keys: PADS, HOLD (a key latches), BELLS, CHOIR (real singers)</dd>
-      <dt>ARP · Drums</dt><dd>TEMPO · LEVEL · BUSY · SWING. LEVEL up from 0 starts them, 0 stops them; BUSY makes a new pattern</dd>
+      <dt>ARP · Drums</dt><dd>TEMPO · TONE · BUSY · SWING. MIX 2's DRUMS up from 0 starts them; BUSY makes a new pattern</dd>
       <dt>Play · Freeze</dt><dd>the machine plays or waits · the reverb and the sky turn to ice</dd>
-      <dt>Save</dt><dd>tap: keep it all for next time · hold + one of the first four keys: keep a moment; HOME + that key brings it back</dd>
+      <dt>Save</dt><dd>tap: keep it all for next time · hold + F, G, A or B (the first four white keys): keep a moment; HOME + that key brings it back. Here: Alt+Shift+1–4 keeps, Alt+1–4 brings back</dd>
     </dl>
     <p class="desk">Computer keyboard: <kbd>Z</kbd>–<kbd>/</kbd> <kbd>S</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> the keys · <kbd>1</kbd>–<kbd>8</kbd> the pages · <kbd>Tab</kbd> SCL · <kbd>←</kbd> <kbd>→</kbd> scene · <kbd>↑</kbd> <kbd>↓</kbd> scale · <kbd>Space</kbd> play · <kbd>Shift</kbd> freeze · <kbd>Enter</kbd> the drums' page</p>
     <p>No sound on an iPhone? Turn the ring/silent switch to ring.</p>
@@ -197,8 +198,9 @@ const WORKLET_SRC = __WORKLET_SRC__;
 // ids as platform.c names them
 const BTN = { OCT_DOWN: 0, OCT_UP: 1, FX: 2, SEL: 3, ENV: 4, LFO: 5, EDIT: 6, GLO: 7, HOME: 8, SAVE: 9, ARP: 10, SEQ: 11, PLAY: 12, REC: 13 };
 const ENC = { SELECT: 0, ALGORITHM: 1, KNOB1: 2, PRESETS: 6 };
-const ROWS = [["DENSITY", "BRIGHT", "SPACE", "DRIFT"], ["ECHO", "BELLS", "WIND", "DRONE"], ["ATTACK", "RELEASE", "LENGTH", "PADS"],
-  ["WAVE", "DETUNE", "RESO", "SHIMMER"], ["RATE", "SWEEP", "WIDTH", "TREMOLO"], ["TONE", "FIFTH", "SUB", "BREATH"], ["CHORDS", "RANGE", "VOICES", "EVOLVE"], ["TEMPO", "LEVEL", "BUSY", "SWING"], ["LAKE", "LOONS", "CHOIR", "SLEEP"]];
+const ROWS = [["DENSITY", "BRIGHT", "SPACE", "DRIFT"], ["ECHO", "CHIMES", "TIME", "TONE"], ["ATTACK", "RELEASE", "LENGTH", "KEYS"],
+  ["WAVE", "DETUNE", "RESO", "SHIMMER"], ["RATE", "SWEEP", "WIDTH", "TREMOLO"], ["TONE", "FIFTH", "SUB", "BREATH"], ["CHORDS", "RANGE", "VOICES", "EVOLVE"],
+  ["TEMPO", "TONE", "BUSY", "SWING"], ["WAVES", "CALLS", "SWELLS", "SLEEP"], ["PADS", "BELLS", "CHOIR", "DRONE"], ["WIND", "LAKE", "LOONS", "DRUMS"]];
 const PAGE_BTN = [BTN.HOME, BTN.FX, BTN.ENV, BTN.EDIT, BTN.LFO, BTN.GLO, BTN.SEQ, BTN.ARP];   // ROWS[i]: the page this button opens
 const PANEL = [   // label, what the FM-1 prints on that button, id
   ["SKY", "HOME", BTN.HOME], ["EFFECTS", "FX", BTN.FX], ["SHAPE", "ENV", BTN.ENV], ["TONE", "EDIT", BTN.EDIT],
@@ -234,7 +236,8 @@ let lastLitB = 0;
 function knobNames() {                                       // the knobs of the page whose button is lit
   const lit = (id) => !!(lastLitB & (1 << id));
   let pg = PAGE_BTN.findIndex((id) => id !== BTN.ARP && lit(id));
-  if (lit(BTN.FX) && lit(BTN.HOME)) pg = 8;                 // FX and HOME lit together: the NIGHT page (FX twice)
+  if (lit(BTN.SAVE)) pg = lit(BTN.HOME) ? 10 : 9;          // SAVE lit: MIX 1 (HOME twice); SAVE and HOME: MIX 2
+  else if (lit(BTN.FX) && lit(BTN.HOME)) pg = 8;            // FX and HOME lit together: the NIGHT page (FX twice)
   else if (pg < 0) pg = 7;                                   // none lit: the drums' page, its light blinking
   const row = ROWS[pg];
   knobLabs.forEach((el, i) => { el.textContent = row[i % 4]; });
@@ -443,7 +446,18 @@ const HOT = { Space: () => tap(BTN.PLAY), ShiftLeft: () => tap(BTN.REC), ShiftRi
               Digit5: () => tap(BTN.LFO), Digit6: () => tap(BTN.GLO), Digit7: () => tap(BTN.SEQ), Digit8: () => tap(BTN.ARP),
               ArrowRight: () => send({ type: "enc", enc: ENC.ALGORITHM, n: 1 }), ArrowLeft: () => send({ type: "enc", enc: ENC.ALGORITHM, n: -1 }),
               ArrowUp: () => send({ type: "enc", enc: ENC.SELECT, n: 1 }), ArrowDown: () => send({ type: "enc", enc: ENC.SELECT, n: -1 }) };
+const MOMKEY = [0, 2, 4, 6];                                 // the moments: F G A B
+function moment(i, save) {                                   // hold SAVE (or HOME), press the key, let go
+  const btn = save ? BTN.SAVE : BTN.HOME;
+  btnHeld.set("m", btn); syncButtons();
+  setTimeout(() => { keyHeld.set("m", MOMKEY[i]); syncKeys(); }, 60);
+  setTimeout(() => { keyHeld.delete("m"); syncKeys(); }, 140);
+  setTimeout(() => { btnHeld.delete("m"); syncButtons(); }, 220);
+}
 addEventListener("keydown", (e) => {
+  if (node && e.altKey && !e.repeat && /^Digit[1-4]$/.test(e.code)) {   // Alt+1..4: back to a moment; Alt+Shift+1..4: keep it
+    e.preventDefault(); moment(+e.code.slice(5) - 1, e.shiftKey); return;
+  }
   if (!node || e.metaKey || e.ctrlKey || e.altKey) return;
   if (HOT[e.code]) { e.preventDefault(); if (!e.repeat || e.code.startsWith("Arrow")) HOT[e.code](); return; }
   const k = KEYMAP[e.code];

@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.5 — The mix
+
+**A mixer.** Press HOME again for **MIX 1**: PADS, BELLS, CHOIR, DRONE. Press it a third time for **MIX 2**: WIND, LAKE, LOONS, DRUMS. Once more goes back to the sky. Each level is a column of light rising from the lake, as tall as the knob and glowing as that part sounds. DRUMS above 0 starts the drums.
+
+**The old level knobs have new jobs:**
+
+| Page | Knobs |
+|---|---|
+| EFFECTS | ECHO, **CHIMES** (how often bells ring), **TIME** (echo length, 0.16–0.73 s, glides like tape), **TONE** (dark to bright repeats) |
+| PAD SHAPE | ATTACK, RELEASE, LENGTH, **KEYS** (how fast the pads you play swell in) |
+| DRUMS | TEMPO, **TONE** (muffled to open), BUSY, SWING |
+| NIGHT | **WAVES** (calm to rough water), **CALLS** (how often loons call), **SWELLS** (how often the machine's choir swells in), SLEEP |
+
+**Loons you can hear.** Calls come more often (the first about 12 s after switch-on), louder and less buried in the reverb, with their own level on MIX 2.
+
+**Moments, easier.**
+- They're on the first four **white** keys, F, G, A and B: hold SAVE and press one to keep a moment, hold HOME and press it to bring it back.
+- HOME now changes page when you let go, so recalling a moment doesn't move you off the page.
+- In the browser: Alt+Shift+1–4 keeps a moment, Alt+1–4 brings it back.
+
+Settings from 1.4 start fresh.
+
 ## 1.4 — The night
 
 The lake comes alive, the machine learns to sing, and AURORA can play you to sleep.

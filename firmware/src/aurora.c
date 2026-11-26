@@ -66,29 +66,37 @@ static char *put_u(char *d, uint32_t v)
 
 /* ------------------------------------------------------------------ what is set (the main loop writes, the audio reads) */
 enum { P_DENSITY, P_BRIGHT, P_SPACE, P_DRIFT,   /* HOME: the sky */
-       P_ECHO, P_BELLS, P_WIND, P_DRONE,        /* FX: the effects and the layers */
-       P_ATTACK, P_RELEASE, P_LENGTH, P_PADS,   /* ENV: the pads' shape */
+       P_ECHO, P_BELLS, P_ETIME, P_ETONE,       /* FX: the echo, how often bells ring (CHIMES), its time, its tone */
+       P_ATTACK, P_RELEASE, P_LENGTH, P_KATK,   /* ENV: the pads' shape; KEYS: how fast the keys' notes swell in */
        P_WAVE, P_DETUNE, P_RESO, P_SHIMMER,     /* EDIT: their tone */
        P_RATE, P_SWEEP, P_WIDTH, P_TREMOLO,     /* LFO: their motion */
        P_DTONE, P_FIFTH, P_SUB, P_BREATH,       /* GLO: the drone */
        P_CHORDS, P_RANGE, P_VOICES, P_EVOLVE,   /* SEQ: the machine */
-       P_TEMPO, P_DLEVEL, P_BUSY, P_SWING,      /* ARP: the drums (LEVEL 0: off) */
-       P_LAKE, P_LOONS, P_MCHOIR, P_SLEEP,      /* FX twice: the night: the lake, its loons, the machine's choir, sleep */
+       P_TEMPO, P_DKTONE, P_BUSY, P_SWING,      /* ARP: the drums */
+       P_WAVES, P_LOONS, P_MCHOIR, P_SLEEP,     /* FX twice: the night: the water, the loons' calls, the machine's choir, sleep */
+       P_PADS, P_BVOL, P_CVOL, P_DRONE,         /* HOME twice: MIX 1 */
+       P_WIND, P_LAKE, P_LVOL, P_DLEVEL,        /* HOME three times: MIX 2 (DRUMS 0: off) */
        NPARAM };
 static const char *const P_NAME[NPARAM] = {
-    "DENSITY", "BRIGHT", "SPACE", "DRIFT", "ECHO", "BELLS", "WIND", "DRONE",
-    "ATTACK", "RELEASE", "LENGTH", "PADS", "WAVE", "DETUNE", "RESO", "SHIMMER",
+    "DENSITY", "BRIGHT", "SPACE", "DRIFT", "ECHO", "CHIMES", "TIME", "TONE",
+    "ATTACK", "RELEASE", "LENGTH", "KEYS", "WAVE", "DETUNE", "RESO", "SHIMMER",
     "RATE", "SWEEP", "WIDTH", "TREMOLO", "TONE", "FIFTH", "SUB", "BREATH",
-    "CHORDS", "RANGE", "VOICES", "EVOLVE", "TEMPO", "LEVEL", "BUSY", "SWING", "LAKE", "LOONS", "CHOIR", "SLEEP"};
+    "CHORDS", "RANGE", "VOICES", "EVOLVE", "TEMPO", "TONE", "BUSY", "SWING", "WAVES", "CALLS", "SWELLS", "SLEEP",
+    "PADS", "BELLS", "CHOIR", "DRONE", "WIND", "LAKE", "LOONS", "DRUMS"};
 /* where the knobs start that a scene does not set */
 static const uint8_t P_DEF[NPARAM] = {
-    64, 64, 90, 56, 60, 40, 30, 80,
-    43, 53, 64, 85, 50, 40, 23, 0,
+    64, 64, 90, 56, 60, 40, 76, 40,
+    43, 53, 64, 12, 50, 40, 23, 0,
     56, 20, 90, 0, 50, 64, 0, 24,
-    64, 64, 80, 64, 19, 0, 50, 20, 40, 32, 36, 0};
-enum { PG_HOME, PG_FX, PG_ENV, PG_EDIT, PG_LFO, PG_GLO, PG_SEQ, PG_RHY, PG_NIGHT, NPAGE };   /* (NIGHT: FX again) */
-static const uint8_t PAGE_BTN[NPAGE] = {BTN_HOME, BTN_FX, BTN_ENV, BTN_EDIT, BTN_LFO, BTN_GLO, BTN_SEQ, BTN_ARP, BTN_FX};
-static const char *const PAGE_NAME[NPAGE] = {"SKY", "EFFECTS", "PAD SHAPE", "PAD TONE", "MOTION", "DRONE", "MACHINE", "DRUMS", "NIGHT"};
+    64, 64, 80, 64, 19, 50, 50, 20, 50, 60, 36, 0,
+    85, 85, 85, 80, 30, 40, 70, 0};
+static const uint8_t SCENE_P[8] = {P_DENSITY, P_BRIGHT, P_SPACE, P_DRIFT, P_ECHO, P_BELLS, P_WIND, P_DRONE};   /* (a scene's def[]) */
+enum { PG_HOME, PG_FX, PG_ENV, PG_EDIT, PG_LFO, PG_GLO, PG_SEQ, PG_RHY, PG_NIGHT, PG_MIX1, PG_MIX2, NPAGE };
+static const uint8_t PAGE_BTN[NPAGE] = {BTN_HOME, BTN_FX, BTN_ENV, BTN_EDIT, BTN_LFO, BTN_GLO, BTN_SEQ, BTN_ARP, BTN_FX, BTN_HOME, BTN_HOME};
+static const char *const PAGE_NAME[NPAGE] = {"SKY", "EFFECTS", "PAD SHAPE", "PAD TONE", "MOTION", "DRONE", "MACHINE", "DRUMS", "NIGHT",
+                                             "MIX 1", "MIX 2"};
+static volatile int32_t vis_mix[8];             /* (the audio's) each part's level now, 0..255: pads, bells, choir, drone,
+                                                 * wind, lake, loons, drums */
 static volatile int32_t g_svol = 256, g_sthin = 256;   /* the sleep timer: the volume and how busy the machine is (0..256) */
 enum { KM_PADS, KM_HOLD, KM_BELLS, KM_CHOIR, NKMODE };
 static const char *const KM_NAME[NKMODE] = {"KEYS: PADS", "KEYS: HOLD", "KEYS: BELLS", "KEYS: CHOIR"};
@@ -359,7 +367,7 @@ static void bell_strike(int32_t note, int32_t vel, int32_t kind)   /* vel 0 .. 1
     note = clamp(note, 48, 93);
     b->ic = pitch_inc((uint32_t)note * 16u);
     b->im = (b->ic >> 1) * (note > 84 ? 4u : RATIO2[arnd_n(4)]);   /* (high up: the octave only, nothing near the top of the band) */
-    b->amp = ((5000 + vel * 52) * 9) >> 4;     /* (~5 dB under the first version's) */
+    b->amp = (((5000 + vel * 52) * 9) >> 4) * par[P_BVOL] / 85;   /* (MIX: BELLS, 85 as before) */
     b->idx = clamp(13000 + (int32_t)arnd_n(22000) - (note - 72) * 550, 4000, 40000);
     b->kamp = note > 86 ? 7 : 8;                /* ~0.75 s or ~1.5 s to 1/e, then the echo and the reverb */
     b->pan = 30 + (int32_t)arnd_n(196);
@@ -451,7 +459,7 @@ static void choir_render(ch_t *c, uint32_t ci)
         if (c->env < 0) c->env = 0;
     }
     e = c->env >> 9;
-    a1 = (((((e * e) >> 15) * CH_VOL) >> 15) * c->lvl) >> 8;
+    a1 = ((((((e * e) >> 15) * CH_VOL) >> 15) * c->lvl) >> 8) * par[P_CVOL] / 85;   /* (MIX: CHOIR) */
     vis_ch_lvl[ci] = (a1 * 255) / CH_VOL;
     if (!a1 && !a0) { c->a_prev = 0; return; }
     c->vpos += c->vdir;                         /* the vowel: one every ~1.5 s, there and back */
@@ -631,7 +639,7 @@ static void drums_step(void)                    /* a new step: what plays of it,
 static void drums_render(void)
 {
     uint32_t i, bpm = 60u + (uint32_t)par[P_TEMPO] * 80u / 127u, base = 661500u / bpm, sw = (uint32_t)par[P_SWING];
-    int32_t klp = 7000 + PAR(P_BRIGHT) * 110;   /* the dark filter over them all */
+    int32_t klp = 4000 + par[P_DKTONE] * 200;   /* TONE: the dark filter over them all */
     tsvf_t c;
     if (dm.moff) {                              /* (MIDI: last block's drums let go) */
         if (dm.moff & DK_KICK) mo(0x89, 36, 64);
@@ -717,7 +725,7 @@ static struct {
     uint32_t cp[2], cinc[2];                    /* the crickets: carrier phase and step */
     int32_t cpos[2], cn[2], ct[2], ca[2];       /* sample in the chirp, pulses in it, blocks to the next, loudness */
     uint32_t cl;                                /* their slow coming and going */
-    int32_t lt, lstage, lseg, lnseg, lblk, lamp, la_prev, lp16, lp0, lp1, lpan;   /* the loon */
+    int32_t lt, lstage, lseg, lnseg, lblk, lamp, la_prev, lp16, lp0, lp1, lpan, started;   /* the loon */
     uint32_t lph, lvib;
     int32_t lnote[3];
 } lk = {{0, 0}, {0, 0}, {0, 0}, {40, 90}};
@@ -741,15 +749,20 @@ static void lake_render(void)
     int32_t lake = PAR(P_LAKE), loons = par[P_LOONS], s, active = 0;
     uint32_t i;
     tsvf_t c[2];
-    if (loons > 0 && --lk.lt <= 0) {            /* LOONS: a call every ~100 s .. ~12 s */
-        int32_t mean = 100000 - loons * 690;
+    if (!lk.started) lk.started = 1, lk.lt = BLK(12000);   /* (the first call a little after switch-on) */
+    if (loons > 0 && par[P_LVOL] > 0 && --lk.lt <= 0) {   /* CALLS: a call every ~70 s .. ~13 s */
+        int32_t mean = 70000 - loons * 450;
         lk.lt = BLK(mean / 2 + (int32_t)arnd_n((uint32_t)mean));
         if (!lk.lstage) loon_start();
     }
     if (lake > 0) {
         lk.cl += 3500u;
         for (s = 0; s < 2; s++) {               /* the laps: one every ~1.5 .. 4 s each side */
-            if (--lk.t[s] <= 0) lk.t[s] = BLK(1500 + (int32_t)arnd_n(2500)), lk.pk[s] = 6000 + (int32_t)arnd_n(14000), lk.up[s] = 1;
+            if (--lk.t[s] <= 0) {               /* WAVES: calm (a lap every ~4 s, small) .. rough (~1 s, big) */
+                int32_t wv = par[P_WAVES];
+                lk.t[s] = BLK(3600 - wv * 20 + (int32_t)arnd_n((uint32_t)(3000 - wv * 15)));
+                lk.pk[s] = (6000 + (int32_t)arnd_n(14000)) * (40 + wv) / 90, lk.up[s] = 1;
+            }
             if (lk.up[s]) { lk.le[s] += (lk.pk[s] - lk.le[s]) / 18; if (lk.le[s] >= lk.pk[s] - 300) lk.up[s] = 0; }
             else lk.le[s] -= lk.le[s] / 80 + (lk.le[s] > 0);
             tsvf_coef_k(&c[s], ((54 + lk.le[s] / 1200) << 8), 5000);
@@ -770,7 +783,7 @@ static void lake_render(void)
             if (++lk.lseg >= lk.lnseg) lk.lstage = 2;
             else lk.lblk = 0, lk.lp0 = lk.lp16, lk.lp1 = lk.lnote[lk.lseg];
         }
-        a = lk.lstage == 2 ? 0 : lk.lblk < glide && lk.lseg ? 3400 : 4600;
+        a = lk.lstage == 2 ? 0 : (lk.lblk < glide && lk.lseg ? 5000 : 7000) * par[P_LVOL] / 70;   /* (MIX: LOONS) */
         lk.lamp += (a - lk.lamp) / (lk.lstage == 2 ? 60 : 30);
         if (lk.lstage == 2 && lk.lamp < 20 && lk.la_prev < 20) lk.lstage = 0, lk.lamp = 0;
         lk.lvib += 104000000u;                  /* ~4.2 Hz */
@@ -806,7 +819,7 @@ static void lake_render(void)
                 int32_t a = a0 + (((a1 - a0) * (int32_t)i) >> 8), y;
                 lk.lph += linc;
                 y = (((sin15(lk.lph) + (sin15(lk.lph << 1) >> 3)) * a) >> 15);
-                l += (y * lgl) >> 17, r += (y * lgr) >> 17, rv += y, dly += y >> 1;
+                l += (y * lgl) >> 16, r += (y * lgr) >> 16, rv += y, dly += y >> 1;
             }
             bus_l[i] += l, bus_r[i] += r, bus_rev[i] += rv, bus_dly[i] += dly;
         }
@@ -822,15 +835,19 @@ static int16_t dl_l[DL_N] __attribute__((section(".pool")));
 static int16_t dl_r[DL_N] __attribute__((section(".pool")));
 static uint32_t dl_w;
 static int32_t dl_fl, dl_fr;
+static int32_t dl_len = DL_L;                   /* TIME: the left line's length now (it glides, like tape) */
 static void echo_render(void)
 {
     int32_t echo = PAR(P_ECHO), fb = 9000 + echo * 12500 / 127, ret = 9000 + echo * 15000 / 127;
-    uint32_t w = dl_w, i;
+    int32_t want = 7000 + par[P_ETIME] * 25000 / 127, tc = 3000 + par[P_ETONE] * 26000 / 127;   /* ~0.16 .. 0.73 s; dark .. bright */
+    uint32_t w = dl_w, i, ll, lr;
     int32_t fl = dl_fl, fr = dl_fr;
+    dl_len += (want - dl_len) / 64 + (want > dl_len) - (want < dl_len);
+    ll = (uint32_t)dl_len, lr = (uint32_t)(dl_len * 3 / 4);
     for (i = 0; i < VB; i++) {
-        int32_t ol = dl_l[(w - DL_L) & (DL_N - 1u)], or_ = dl_r[(w - DL_R) & (DL_N - 1u)];
-        fl += (ol - fl) / 4;                    /* (towards zero: a quiet tail ends) */
-        fr += (or_ - fr) / 4;
+        int32_t ol = dl_l[(w - ll) & (DL_N - 1u)], or_ = dl_r[(w - lr) & (DL_N - 1u)];
+        fl += ((ol - fl) * tc) >> 15;           /* (TONE: darker each time round, or not) */
+        fr += ((or_ - fr) * tc) >> 15;
         dl_l[w] = (int16_t)clamp(bus_dly[i] + ((fr * fb) >> 15), -32767, 32767);
         dl_r[w] = (int16_t)clamp((fl * fb) >> 15, -32767, 32767);
         w = (w + 1u) & (DL_N - 1u);
@@ -987,7 +1004,7 @@ static void gen_tick(void)                      /* once a block */
         } else if (e & 2u) {
             if (e & 1u) bell_strike(note, 100, 2);
         } else if (e & 1u) {
-            pad_start(pad_take(), note, (int32_t)id, 0, (atk10_of() + 2) / 3);
+            pad_start(pad_take(), note, (int32_t)id, 0, 1 + par[P_KATK] * 30 / 127);   /* KEYS: 0.1 .. 3 s */
         } else {
             for (k = 0; k < NV; k++)
                 if (pv[k].gate && pv[k].id == (int32_t)id) pv[k].gate = 0;
@@ -1077,6 +1094,16 @@ static void app_audio(int32_t *out, uint32_t n)
         out[2u * i + 1u] = ((r * m) >> 5) * sv >> 8;
     }
     vis_out = pk;
+    {                                           /* the MIX pages' columns: each part's level now */
+        int32_t pads = 0, bl = 0, ch = 0;
+        for (k = 0; k < NV; k++) pads += vis_lvl[k];
+        for (k = 0; k < NB; k++) bl += bell[k].amp;
+        for (k = 0; k < NCH; k++) ch += vis_ch_lvl[k];
+        vis_mix[0] = clamp(pads / 3, 0, 255), vis_mix[1] = clamp(bl / 60, 0, 255), vis_mix[2] = clamp(ch / 2, 0, 255);
+        vis_mix[3] = clamp(dr.a_prev / 36, 0, 255), vis_mix[4] = clamp(wn.a_prev / 30, 0, 255);
+        vis_mix[5] = clamp(((lk.le[0] + lk.le[1]) * PAR(P_LAKE)) >> 14, 0, 255), vis_mix[6] = clamp(lk.la_prev / 28, 0, 255);
+        vis_mix[7] = clamp((dm.kamp + dm.samp + dm.hamp * 3) / 90, 0, 255);
+    }
 }
 
 /* ------------------------------------------------------------------ the sky (the main loop) */
@@ -1228,6 +1255,8 @@ static struct { uint8_t x, y; uint16_t t; } frost[NFROST];   /* frozen: sparks o
 static int32_t ov_fade;                         /* the page's light: 0 .. 256 */
 static uint32_t ov_page;                        /* the page it shows (it stays while it fades) */
 static int32_t glow_horizon;                    /* EFFECTS: the drone's glow along the horizon */
+static struct { int16_t h, a; uint8_t c[3]; } mixc[4];   /* MIX: the columns: height, light, colour */
+static uint32_t nmix;
 static int32_t star_gain = 256;                 /* EFFECTS: the stars brighter with BELLS */
 
 static void dot_add(int32_t x, int32_t y, int32_t rad, int32_t a, const int32_t *c)
@@ -1259,7 +1288,7 @@ static void ov_setup(uint32_t now)              /* this frame's light for the pa
     const scale_t *s = &SCALES[g_scale];
     uint32_t k, x, pg = ov_page, t = v_t;
     int32_t f = ov_fade, wpal[3];
-    oc_n = 0, oc_refl = 0, ndot = 0, nseg = 0, nring = 0, glow_horizon = 0, star_gain = 256;
+    oc_n = 0, oc_refl = 0, ndot = 0, nseg = 0, nring = 0, glow_horizon = 0, star_gain = 256, nmix = 0;
     for (k = 0; k < 3u; k++) wpal[k] = 255 << 8;
     if (f <= 0) return;
     if (pg == PG_ENV) {                         /* the envelope, as a ridge of light: up over ATTACK, along for LENGTH,
@@ -1385,6 +1414,18 @@ static void ov_setup(uint32_t now)              /* this frame's light for the pa
                 if (!g_drums) a = a / 2;
                 dot_add(xx, yy, on ? ROWR[row] : 1, (a * f) >> 8, (int32_t)k == st && on ? wpal : pal_now[ROWP[row]]);
             }
+    } else if (pg == PG_MIX1 || pg == PG_MIX2) {   /* the mix: four columns of light from the lake, one over each knob,
+                                                 * as tall as its level, glowing as that part sounds */
+        uint32_t base = pg == PG_MIX1 ? 0u : 4u;
+        for (k = 0; k < 4u; k++) {
+            int32_t lvl = par[(pg == PG_MIX1 ? P_PADS : P_WIND) + k], live = vis_mix[base + k];
+            mixc[k].h = (int16_t)(lvl ? 6 + lvl * (HZ - 44) / 127 : 0);
+            mixc[k].a = (int16_t)(((110 + (live * 145 >> 8)) * f) >> 8);
+            mixc[k].c[0] = (uint8_t)clamp(pal_now[k % 3u][0] >> 8, 0, 255), mixc[k].c[1] = (uint8_t)clamp(pal_now[k % 3u][1] >> 8, 0, 255);
+            mixc[k].c[2] = (uint8_t)clamp(pal_now[k % 3u][2] >> 8, 0, 255);
+            if (mixc[k].h) dot_add(30 + (int32_t)k * 60, HZ - mixc[k].h, 4, mixc[k].a + 50, pal_now[k % 3u]);
+        }
+        nmix = 4;
     } else if (pg == PG_NIGHT) {                /* the night: fireflies over the shore, as many as LAKE; a loon's call
                                                  * ripples across the water (drawn on every page) */
         static const int32_t FF[3] = {190 << 8, 255 << 8, 120 << 8};
@@ -1479,6 +1520,20 @@ static void ov_strip(uint32_t y0, uint32_t now)  /* the page's light, the frozen
                     v = (v * (128 + (v >> 1))) >> 8;
                     px_add((int32_t)x, y, y0, (drng[k].c[0] * v) >> 8, (drng[k].c[1] * v) >> 8, (drng[k].c[2] * v) >> 8);
                 }
+            }
+        }
+    }
+    for (k = 0; k < nmix; k++) {                /* MIX: the columns, brightest at the lake, fading up; the water mirrors them */
+        int32_t cx = 30 + (int32_t)k * 60, h = mixc[k].h, a = mixc[k].a, dx;
+        if (!h) continue;
+        for (y = ys; y < ye; y++) {
+            int32_t v, up;
+            if (y < HZ) { if (y < HZ - h) continue; up = HZ - y; v = a * (h - up / 2) / h; }
+            else { up = y - HZ; if (up > h / 3) continue; v = (a * (h / 3 - up) / (h / 3 + 1)) >> 1; }
+            for (dx = -9; dx <= 9; dx++) {
+                int32_t ad = dx < 0 ? -dx : dx, w = ((10 - ad) * (10 - ad) * v) / 100;
+                if (y < HZ && y >= HZ - tree_h[cx + dx]) w >>= 2;
+                px_add(cx + dx, y, y0, (mixc[k].c[0] * w) >> 8, (mixc[k].c[1] * w) >> 8, (mixc[k].c[2] * w) >> 8);
             }
         }
     }
@@ -1756,7 +1811,7 @@ static void hud_draw(uint32_t y0, uint32_t now)   /* the HUD's text into this st
         }
         else if (hud_mode == HUD_KNOB && hud_param < NPARAM) put_u(val, (uint32_t)par[hud_param]), tl = P_NAME[hud_param], tr = val;
         else if (view == PG_NIGHT && vis_sleep >= 0 && vis_sleep < 256) tl = PAGE_NAME[view], tr = "MOON SETTING", cl = C_WHITE;
-        else if (view == PG_RHY) tl = PAGE_NAME[view], tr = g_drums ? "PLAYING" : "OFF: TURN LEVEL", cl = C_WHITE;
+        else if (view == PG_RHY) tl = PAGE_NAME[view], tr = g_drums ? "PLAYING" : "OFF: SEE MIX 2", cl = C_WHITE;
         else if (view != PG_HOME) tl = PAGE_NAME[view], tr = kmode != KM_PADS ? KM_NAME[kmode] : g_freeze ? "FROZEN" : "", cl = C_WHITE;
         else if (kmode != KM_PADS || g_freeze) tl = kmode != KM_PADS ? KM_NAME[kmode] : "", tr = g_freeze ? "FROZEN" : "";
         if (tl) cv_text(6, 4, &FONT_S, tl, cl);
@@ -1865,8 +1920,9 @@ static void strip_draw(uint32_t s, uint32_t now)
 
 /* ------------------------------------------------------------------ the panel (the main loop) */
 #define SET_MAGIC 0x34525541u                   /* "AUR4" */
-#define NMOM 4u                                 /* the moments: hold SAVE + one of the first four keys keeps one, HOME + it
-                                                 * brings it back */
+#define NMOM 4u                                 /* the moments: hold SAVE + one of the first four white keys (F G A B) keeps
+                                                 * one, HOME + it brings it back */
+#define MOMK(k) ((k) == 0u ? 0 : (k) == 2u ? 1 : (k) == 4u ? 2 : (k) == 6u ? 3 : -1)
 typedef struct { uint8_t scene, scale, root, oct, kmode, used, par[NPARAM]; } mom_t;
 typedef struct { uint32_t magic; uint8_t scene, scale, root, oct, run, kmode, drums, pad; uint8_t par[NPARAM]; mom_t mom[NMOM]; } set_t;
 static set_t st;                                /* (the flash's copy: the power-on state and the moments) */
@@ -1910,7 +1966,8 @@ static void scene_load(uint32_t s, int with_sets)   /* a scene: its scale, its r
     sc = &SCENES[g_scene];
     if (!with_sets) return;
     g_scale = sc->scale, g_root = sc->root;
-    for (k = 0; k < NPARAM; k++) par[k] = k < 8u ? sc->def[k] : P_DEF[k];
+    for (k = 0; k < NPARAM; k++) par[k] = P_DEF[k];
+    for (k = 0; k < 8u; k++) par[SCENE_P[k]] = sc->def[k];
     par[P_ATTACK] = (sc->atk - 1) * 127 / 79;
     par[P_RELEASE] = (sc->rel - 5) * 127 / 155;
     par[P_WAVE] = sc->wave;
@@ -1989,14 +2046,20 @@ static void app_main(void)
         pressed = fm1_input_edges(&released);
         for (k = 0; k < NPAGE; k++)             /* a page's button: that page; again: back to the sky. FX: EFFECTS, then
                                                  * NIGHT, then the sky */
-            if (k != PG_NIGHT && pressed & 1u << PAGE_BTN[k]) {
+            if (k != PG_HOME && k != PG_NIGHT && k != PG_MIX1 && k != PG_MIX2 && pressed & 1u << PAGE_BTN[k]) {
                 if (k == PG_FX) page = page == PG_FX ? PG_NIGHT : page == PG_NIGHT ? PG_HOME : PG_FX;
                 else page = page == k ? PG_HOME : k;
                 page_t = now;
                 if (page == PG_HOME) hud_status(3000);
                 else hud_mode = HUD_OFF;
-                if (k == PG_HOME) home_used = 0;
             }
+        if (pressed & 1u << BTN_HOME) home_used = 0;
+        if (released & 1u << BTN_HOME && !home_used) {   /* HOME (let go, no key with it): the sky; again: MIX 1, MIX 2 */
+            page = page == PG_HOME ? PG_MIX1 : page == PG_MIX1 ? PG_MIX2 : PG_HOME;
+            page_t = now;
+            if (page == PG_HOME) hud_status(3000);
+            else hud_mode = HUD_OFF;
+        }
         if (pressed & 1u << BTN_PLAY) {
             if (sleep_done || sleep_len) {      /* asleep (or falling asleep): PLAY wakes it */
                 sleep_done = 0, sleep_len = 0, par[P_SLEEP] = 0, sleep_seen = 0, g_svol = g_sthin = 256, g_run = 1;
@@ -2067,25 +2130,25 @@ static void app_main(void)
         for (k = 0; k < 27u; k++) {
             if (down >> k & 1u) {
                 int32_t note = scale_snap(53 + (int32_t)k + 12 * g_oct);
-                if (k < NMOM && (fm1_in.buttons >> BTN_SAVE & 1u)) {   /* SAVE held + key 1..4: keep this moment */
-                    mom_t *mm = &st.mom[k];
+                if (MOMK(k) >= 0 && (fm1_in.buttons >> BTN_SAVE & 1u)) {   /* SAVE held + F G A B: keep this moment */
+                    mom_t *mm = &st.mom[MOMK(k)];
                     uint32_t j;
                     char r[12];
                     save_used = 1;
                     mm->scene = (uint8_t)g_scene, mm->scale = (uint8_t)g_scale, mm->root = (uint8_t)g_root;
                     mm->oct = (uint8_t)(g_oct + 1), mm->kmode = (uint8_t)kmode, mm->used = 1;
                     for (j = 0; j < NPARAM; j++) mm->par[j] = (uint8_t)(j == P_SLEEP ? 0 : par[j]);
-                    put_u(put_s(r, "MOMENT "), k + 1u);
+                    put_u(put_s(r, "MOMENT "), (uint32_t)MOMK(k) + 1u);
                     hud_msg(r, settings_save(&st, sizeof st) == 0 ? "KEPT" : "FAILED", 2600);
                     v_flash = 160;
                     continue;
                 }
-                if (k < NMOM && (fm1_in.buttons >> BTN_HOME & 1u)) {   /* HOME held + key 1..4: back to that moment */
-                    mom_t *mm = &st.mom[k];
+                if (MOMK(k) >= 0 && (fm1_in.buttons >> BTN_HOME & 1u)) {   /* HOME held + F G A B: back to that moment */
+                    mom_t *mm = &st.mom[MOMK(k)];
                     uint32_t j;
                     char r[12];
                     home_used = 1;
-                    put_u(put_s(r, "MOMENT "), k + 1u);
+                    put_u(put_s(r, "MOMENT "), (uint32_t)MOMK(k) + 1u);
                     if (!mm->used || mm->scene >= NSCENE || mm->scale >= NSCALE) { hud_msg(r, "EMPTY", 2000); continue; }
                     scene_load(mm->scene, 0);
                     g_scale = mm->scale, g_root = mm->root % 12u, g_oct = clamp((int32_t)mm->oct - 1, -1, 1);
@@ -2143,8 +2206,11 @@ static void app_main(void)
                     lit |= 1u << kk;
                 }
             for (k = 0; k < 27u; k++) fm1_led_key(KEY_LED(k), (int)(lit >> k & 1u));
-            for (k = 0; k < NPAGE; k++)
-                if (k != PG_NIGHT) fm1_led_key(PAGE_BTN[k], page == k || (page == PG_NIGHT && (k == PG_FX || k == PG_HOME)));
+            for (k = 0; k < NPAGE; k++)         /* (NIGHT: FX and HOME lit; MIX 1: SAVE; MIX 2: SAVE and HOME) */
+                if (k != PG_NIGHT && k != PG_MIX1 && k != PG_MIX2)
+                    fm1_led_key(PAGE_BTN[k], page == k || (k == PG_FX && page == PG_NIGHT) ||
+                                (k == PG_HOME && (page == PG_NIGHT || page == PG_MIX2)));
+            fm1_led_key(BTN_SAVE, page == PG_MIX1 || page == PG_MIX2);
             fm1_led_key(BTN_PLAY, g_run);
             fm1_led_key(BTN_REC, g_freeze);
             fm1_led_key(BTN_ARP, g_drums ? vis_step >= 0 && (vis_step & 3) < 2 : page == PG_RHY);   /* (playing: it blinks the beat) */
