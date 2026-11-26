@@ -86,7 +86,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
 <header class="band sky">
   <div class="wrap">
     <h1>AURORA on the FM-1</h1>
-    <p class="lede">An ambient machine that plays by itself: slow pads drifting through a scale over a drone, bells falling into a long echo, wind, all inside a very large reverb. Every button opens a page of four knobs, and each page puts its own light into the aurora. Press a button on the panel to see what it does.</p>
+    <p class="lede">An ambient machine that plays by itself and never quite repeats: pads move through chord progressions and keep returning to a motif, bells play phrases of it, and the piece drifts through sections and keys, over a drone and wind in a very large reverb. Every button opens a page of four knobs, and each page puts its own light into the aurora. Press a button on the panel to see what it does.</p>
     <div class="top">
       <div class="panel">
         <svg id="panel" viewBox="0 0 640 300" role="group" aria-label="The FM-1's panel: buttons open AURORA's pages"></svg>
@@ -134,7 +134,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
         <tr><td>SCL</td><td>Tap: the keys' mode (PADS, HOLD, BELLS). Hold it and press a key: that key becomes the root.</td></tr>
         <tr><td>PLAY</td><td>The machine plays or waits. Waiting, the aurora sinks low; the keys still play.</td></tr>
         <tr><td>REC</td><td>Freeze: the reverb holds what is in it, for ever, and the sky turns to ice.</td></tr>
-        <tr><td>ARP</td><td>Drums. Tap: they start, on a new random 16-step pattern (soft kick, snare, hats, a blip tuned to the scale, all into the reverb), or stop; its light blinks the beat. Hold it and turn KNOB 1–4: TEMPO, LEVEL, BUSY, SWING.</td></tr>
+        <tr><td>ARP</td><td>Drums. Tap: they ease in on a new pattern (heartbeat, rim, shaker, mallets on the chord), or stop; its light blinks the beat. Hold it and turn KNOB 1–4: TEMPO, LEVEL, BUSY, SWING.</td></tr>
         <tr><td>SAVE</td><td>Keeps everything (scene, scale, root, octave, key mode, drums on or off, all 32 knobs) as the power-on state. Save while it is quiet: writing the flash stops the sound for a moment.</td></tr>
         <tr><td>MASTER</td><td>The volume.</td></tr>
         <tr><td>MIDI in</td><td>Notes play the pads, as they come (not snapped to the scale).</td></tr>
@@ -165,7 +165,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
     <div class="grid3">
       <div class="card"><img src="screens/freeze.png" alt="The sky frozen: pale blue curtains, still icy water" loading="lazy"><h3>Freeze (REC)</h3><p>The reverb holds for ever. The curtains slow to a stop and turn pale blue, the water goes still under a sheet of ice with faint cracks, and sparks of frost come and go. FROZEN shows at the top right.</p></div>
       <div class="card"><img src="screens/hold.png" alt="Three pillars of light rising from the horizon" loading="lazy"><h3>Hold (SCL, then keys)</h3><p>Each latched note becomes a pillar of light rising from the horizon at its pitch, twinkling as it goes up, while it rings.</p></div>
-      <div class="card"><img src="screens/drums.png" alt="Rows of lights for the drum pattern over the aurora" loading="lazy"><h3>Drums (ARP)</h3><p>Each kick makes the aurora pulse and reach lower, each snare flares a star (now and then a shooting star), each hat makes a star twinkle. Hold ARP to see the pattern itself.</p></div>
+      <div class="card"><img src="screens/drums.png" alt="Rows of lights for the drum pattern over the aurora" loading="lazy"><h3>Drums (ARP)</h3><p>Each heartbeat makes the aurora pulse and reach lower, each rim flares a star (now and then a shooting star), the shaker makes stars twinkle. Hold ARP to see the pattern itself.</p></div>
     </div>
   </div>
 </section>
@@ -242,15 +242,15 @@ const PAGES = [
         ["FIFTH", "The fifth and the octave that come and go above the drone: none to twice."],
         ["SUB", "A sine an octave below the drone."],
         ["BREATH", "The drone's level swelling and sinking, every ~9 s to ~5 s, deeper as it rises."]] },
-  { btn: "SEQ", name: "Machine", img: "seq", sky: "The scale as an arch of stars over the range the machine uses. The chord it leans on is bright, the notes it is playing flare, and a thread joins them.",
-    k: [["CHORDS", "How often the harmony moves to another degree: every ~60 s down to ~8 s."],
+  { btn: "SEQ", name: "Machine", img: "seq", sky: "The scale as an arch of stars over the range the machine uses. The chord it is on is bright, the notes it is playing flare, and a thread joins them. Chords follow on the way chords lead, and a short motif keeps coming back on each one.",
+    k: [["CHORDS", "How often the harmony moves to the next chord: every ~60 s down to ~8 s."],
         ["RANGE", "How high the machine wanders: from one to four octaves of the scale."],
         ["VOICES", "How many pad notes the machine plays at once: 1 to 6."],
-        ["ANSWER", "How often a bell is answered by another a step or two up."]] },
-  { btn: "ARP", name: "Drums", img: "drums", held: true, sky: "Hold ARP: the pattern as four rows of lights low in the sky (blips, hats, snare, kick), the step playing in white. Whenever the drums play, kicks pulse the aurora, snares flare a star and hats make stars twinkle.",
-    k: [["TEMPO", "60 to 140 BPM (84 to start)."],
+        ["EVOLVE", "How much the piece changes over time. 0 plays as set. Higher: sections come more often (calm, bloom, night, sparkle, drift), each leaning density, brightness, bells, wind, drone and voices its way without moving your knobs; the motif changes; chords bloom; pads add sevenths; the drum pattern drifts; above ~70 the key moves now and then (NEW KEY shows on the screen)."]] },
+  { btn: "ARP", name: "Drums", img: "drums", held: true, sky: "Soft drums made for the haze: a low heartbeat, a brushed rim, a shaker and mallets that play the chord and the motif into the echo, all darkened by BRIGHT and deep in the reverb. Each step plays only as often as its chance, a little loose, so no two bars match; calm sections thin them; EVOLVE moves a step every four bars; they ease in when started. Hold ARP: the pattern as rows of lights (mallets, shaker, rim, heartbeat), the likelier steps brighter, the step playing in white.",
+    k: [["TEMPO", "60 to 140 BPM (72 to start, mostly in half time)."],
         ["LEVEL", "How loud the drums are."],
-        ["BUSY", "How full the next pattern is: more kicks, sixteenth hats, ghost snares, blips. It takes effect at the next tap."],
+        ["BUSY", "How full the next pattern is: more shaker, ghost rims, mallets, a third heartbeat. It takes effect at the next tap."],
         ["SWING", "How late the off-beats come."]] },
 ];
 const SCENES = [

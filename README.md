@@ -1,6 +1,6 @@
 # AURORA
 
-Ambient firmware for the M-VAVE FM-1. It plays by itself: slow pads over a drone, bells into a long echo, wind, a huge reverb, and soft random drums when you want a pulse. The screen is an aurora over a lake, and each page of controls adds its own light to it.
+Ambient firmware for the M-VAVE FM-1. It plays by itself and never quite repeats: pads move through chord progressions and keep returning to a motif, bells play phrases of it, and the piece drifts through sections and keys. Underneath are a drone, wind, a huge reverb, and soft drums when you want a pulse. The screen is an aurora over a lake, and each page of controls adds its own light to it.
 
 ![AURORA running in the browser](docs/web.png)
 
@@ -16,7 +16,7 @@ Ambient firmware for the M-VAVE FM-1. It plays by itself: slow pads over a drone
 | EDIT | Pad tone | WAVE, DETUNE, RESO, SHIMMER |
 | LFO | Motion | RATE, SWEEP, WIDTH, TREMOLO |
 | GLO | Drone | TONE, FIFTH, SUB, BREATH |
-| SEQ | Machine | CHORDS, RANGE, VOICES, ANSWER |
+| SEQ | Machine | CHORDS, RANGE, VOICES, EVOLVE |
 | ARP (hold) | Drums | TEMPO, LEVEL, BUSY, SWING |
 
 ALGORITHM picks the scene, SELECT the scale, PRESETS the root. Tap SCL to switch the keys between PADS, HOLD and BELLS. ARP turns the drums on or off, with a new pattern each time. PLAY starts or stops the machine, REC freezes the reverb and the sky, and SAVE keeps the current state for power-on.

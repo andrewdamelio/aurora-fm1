@@ -14,7 +14,7 @@
  *   EDIT   PAD TONE   WAVE     DETUNE   RESO     SHIMMER    their waveform, on the horizon
  *   LFO    MOTION     RATE     SWEEP    WIDTH    TREMOLO    ribbons of their movement
  *   GLO    DRONE      TONE     FIFTH    SUB      BREATH     the drone's rings rising from under the horizon
- *   SEQ    MACHINE    CHORDS   RANGE    VOICES   ANSWER     the scale as a constellation, its chord lit
+ *   SEQ    MACHINE    CHORDS   RANGE    VOICES   EVOLVE     the scale as a constellation, its chord lit
  *   ARP    DRUMS      TEMPO    LEVEL    BUSY     SWING      (ARP held) the pattern as rows of lights, a playhead
  *
  *   ALGORITHM    the scene (its sound, its sky, its scale, its settings)      SELECT   the scale
@@ -70,20 +70,20 @@ enum { P_DENSITY, P_BRIGHT, P_SPACE, P_DRIFT,   /* HOME: the sky */
        P_WAVE, P_DETUNE, P_RESO, P_SHIMMER,     /* EDIT: their tone */
        P_RATE, P_SWEEP, P_WIDTH, P_TREMOLO,     /* LFO: their motion */
        P_DTONE, P_FIFTH, P_SUB, P_BREATH,       /* GLO: the drone */
-       P_CHORDS, P_RANGE, P_VOICES, P_ANSWER,   /* SEQ: the machine */
+       P_CHORDS, P_RANGE, P_VOICES, P_EVOLVE,   /* SEQ: the machine */
        P_TEMPO, P_DLEVEL, P_BUSY, P_SWING,      /* ARP held: the drums */
        NPARAM };
 static const char *const P_NAME[NPARAM] = {
     "DENSITY", "BRIGHT", "SPACE", "DRIFT", "ECHO", "BELLS", "WIND", "DRONE",
     "ATTACK", "RELEASE", "LENGTH", "PADS", "WAVE", "DETUNE", "RESO", "SHIMMER",
     "RATE", "SWEEP", "WIDTH", "TREMOLO", "TONE", "FIFTH", "SUB", "BREATH",
-    "CHORDS", "RANGE", "VOICES", "ANSWER", "TEMPO", "LEVEL", "BUSY", "SWING"};
+    "CHORDS", "RANGE", "VOICES", "EVOLVE", "TEMPO", "LEVEL", "BUSY", "SWING"};
 /* where the knobs start that a scene does not set */
 static const uint8_t P_DEF[NPARAM] = {
     64, 64, 90, 56, 60, 40, 30, 80,
     43, 53, 64, 85, 50, 40, 23, 0,
     56, 20, 90, 0, 50, 64, 0, 24,
-    64, 64, 80, 38, 38, 70, 56, 24};
+    64, 64, 80, 64, 19, 70, 50, 20};
 enum { PG_HOME, PG_FX, PG_ENV, PG_EDIT, PG_LFO, PG_GLO, PG_SEQ, NPAGE, PG_RHY = NPAGE, NVIEW };   /* (RHYTHM: while ARP is held) */
 static const uint8_t PAGE_BTN[NPAGE] = {BTN_HOME, BTN_FX, BTN_ENV, BTN_EDIT, BTN_LFO, BTN_GLO, BTN_SEQ};
 static const char *const PAGE_NAME[NVIEW] = {"SKY", "EFFECTS", "PAD SHAPE", "PAD TONE", "MOTION", "DRONE", "MACHINE", "DRUMS"};
@@ -91,8 +91,12 @@ enum { KM_PADS, KM_HOLD, KM_BELLS, NKMODE };
 static const char *const KM_NAME[NKMODE] = {"PADS", "HOLD", "BELLS"};
 
 static volatile int32_t par[NPARAM];            /* 0 .. 127 */
+static int32_t md[NPARAM];                      /* (the audio's) how the section leans each knob (x 256) */
+#define PAR(p) clamp(par[p] + (md[p] >> 8), 0, 127)   /* a knob as the sound uses it: where it is, and the lean */
+static volatile int32_t g_shift;                /* (the audio's) the key the sections moved to, over the root */
+#define EROOT ((g_root + g_shift) % 12)        /* the root as it sounds */
+static volatile int32_t vis_mood;
 static volatile int32_t g_scene, g_scale, g_root, g_oct, g_run = 1, g_freeze;
-static volatile uint32_t g_casc;                /* falls of bells asked for (none now: ARP is the drums) */
 static volatile int32_t g_drums;                /* the drums play (ARP) */
 
 typedef struct { const char *name; uint8_t n; uint8_t st[7]; } scale_t;
@@ -145,7 +149,7 @@ static int32_t scale_snap(int32_t note)         /* the scale's note nearest to n
     static const int8_t TRY[12] = {0, -1, 1, -2, 2, -3, 3, -4, 4, -5, 5, 6};
     uint32_t t, k;
     for (t = 0; t < 12u; t++) {
-        int32_t pc = ((note + TRY[t] - g_root) % 12 + 12) % 12;
+        int32_t pc = ((note + TRY[t] - EROOT) % 12 + 12) % 12;
         for (k = 0; k < s->n; k++)
             if (s->st[k] == pc) return note + TRY[t];
     }
@@ -211,7 +215,7 @@ static void kb_update(void)
     kb.reso = par[P_RESO] * 100 / 127;
     kb.shk = par[P_SHIMMER] * 14000 / 127;
     kb.rmul = 64 + r * r * 960 / 16129;         /* the voices' slow movement: 0.25 .. 4 x (x 256) */
-    kb.sweep = 4 + par[P_DRIFT] / 10 + par[P_SWEEP] * 28 / 127;
+    kb.sweep = 4 + PAR(P_DRIFT) / 10 + par[P_SWEEP] * 28 / 127;
     kb.width = par[P_WIDTH];
     kb.trem = par[P_TREMOLO] * 26000 / 127;
 }
@@ -219,7 +223,7 @@ static void kb_update(void)
 #define PAD_VOL 7400                            /* a voice at full level (Q15) */
 static void pad_render(pv_t *v, uint32_t vi)
 {
-    int32_t bright = par[P_BRIGHT], drift = par[P_DRIFT], echo = par[P_ECHO];
+    int32_t bright = PAR(P_BRIGHT), drift = PAR(P_DRIFT), echo = PAR(P_ECHO);
     int32_t e, a0 = v->a_prev, a1, vib, spread = kb.spread, p16, gl, gr, pan, ds, shk = kb.shk;
     uint32_t inc1, inc2, inc3, ph1 = v->ph1, ph2 = v->ph2, ph3 = v->ph3, i;
     int32_t ic1 = v->ic1, ic2 = v->ic2, wave = kb.wave, ls;
@@ -344,7 +348,7 @@ static void bell_strike(int32_t note, int32_t vel, int32_t kind)   /* vel 0 .. 1
 static void bell_render(bell_t *b)
 {
     int32_t a0 = b->a_prev, a1 = b->amp, idx = b->idx, gl = SINE[256 - b->pan], gr = SINE[b->pan];
-    int32_t ds = 70 + par[P_ECHO] * 150 / 127;
+    int32_t ds = 70 + PAR(P_ECHO) * 150 / 127;
     uint32_t pc = b->pc, pm = b->pm, i;
     if (!a0 && !a1) return;
     for (i = 0; i < VB; i++) {
@@ -367,7 +371,7 @@ static void bell_render(bell_t *b)
 static struct { uint32_t p0, p1, p2, p5, p8, ps, l1, l2, l3, lb; int32_t p16, ic1, ic2, a_prev; } dr;
 static void drone_render(void)
 {
-    int32_t lvl = par[P_DRONE], root = g_root, note = (root <= 5 ? 36 : 24) + root, tgt = note * 16;
+    int32_t lvl = PAR(P_DRONE), root = EROOT, note = (root <= 5 ? 36 : 24) + root, tgt = note * 16;
     int32_t a0 = dr.a_prev, a1 = (lvl * lvl * 9200) >> 14, f5, f8, cut, d, fifth = par[P_FIFTH], sub = par[P_SUB] * 160;
     int32_t br = par[P_BREATH];
     uint32_t i0, i1, i2, i5, i8, is, i;
@@ -387,7 +391,7 @@ static void drone_render(void)
     is = i0 >> 1;
     f5 = ((9000 + ((sin15(dr.l1 * 5u) * 8000) >> 15)) * fifth) >> 6;
     f8 = ((7000 + ((sin15(dr.l2 * 7u) * 6500) >> 15)) * fifth) >> 6;
-    cut = ((30 + par[P_DTONE] * 40 / 127 + par[P_BRIGHT] * 10 / 127) << 8) + ((sin15(dr.l3 * 9u) * 6) >> 7);
+    cut = ((30 + par[P_DTONE] * 40 / 127 + PAR(P_BRIGHT) * 10 / 127) << 8) + ((sin15(dr.l3 * 9u) * 6) >> 7);
     tsvf_coef(&c, cut, 30);
     for (i = 0; i < VB; i++) {
         int32_t s, a, y, w;
@@ -408,7 +412,7 @@ static void drone_render(void)
 static struct { uint32_t l1, l2, l3; int32_t ic1, ic2, a_prev; } wn;
 static void wind_render(void)
 {
-    int32_t lvl = par[P_WIND], a0 = wn.a_prev, a1, gl, gr, pan;
+    int32_t lvl = PAR(P_WIND), a0 = wn.a_prev, a1, gl, gr, pan;
     uint32_t i;
     tsvf_t c;
     wn.l1 += 1083000u, wn.l2 += 1468000u, wn.l3 += 803000u;   /* cycles of 23, 17, 31 s */
@@ -416,7 +420,7 @@ static void wind_render(void)
     if (a1 < 0) a1 = 0;
     a1 = a0 + (a1 - a0) / 48 + (a1 > a0) - (a1 < a0);
     if (!a0 && !a1) return;
-    tsvf_coef_k(&c, (72 << 8) + ((sin15(wn.l1) * 19) >> 7) + ((sin15(wn.l1 * 5u) * 5) >> 7) + par[P_BRIGHT] * 20, 2000);
+    tsvf_coef_k(&c, (72 << 8) + ((sin15(wn.l1) * 19) >> 7) + ((sin15(wn.l1 * 5u) * 5) >> 7) + PAR(P_BRIGHT) * 20, 2000);
     pan = 128 + ((sin15(wn.l3) * 90) >> 15);
     gl = SINE[256 - pan], gr = SINE[pan];
     for (i = 0; i < VB; i++) {
@@ -429,78 +433,128 @@ static void wind_render(void)
     wn.a_prev = a1;
 }
 
-/* the drums (ARP): 16 steps, made up at random by the main loop each time they start: a soft kick (a sine falling in
- * pitch), a snare (noise through a band, a short body), hats (noise, differenced: closed or open) and a blip tuned to the
- * scale (two-operator FM) that goes into the echo. TEMPO 60 .. 140 BPM, LEVEL, SWING (the off-beats late) */
+/* the drums (ARP), made to sit in the haze: 16 steps whose pattern the main loop makes up each time they start; each
+ * step plays only as often as its chance says (so no two bars are the same), a little late or early, quieter in calm
+ * sections, and every four bars EVOLVE moves a step. A soft low heartbeat (a sine falling slowly, no click), a brushed
+ * rim (a band of noise with a small knock), a shaker (noise, eased in), and mallets on the chord and the motif, into
+ * the echo. All through a dark filter (BRIGHT) and deep into the reverb. TEMPO 60 .. 140 BPM, SWING the off-beats late */
 enum { DK_KICK = 1, DK_SNARE = 2, DK_HAT = 4, DK_OPEN = 8, DK_PERC = 16 };
-static volatile uint8_t dpat[16], dacc[16], ddeg[16];   /* each step: what plays, its accent 0..127, the blip's degree */
+static volatile uint8_t dpat[16], dacc[16], dprob[16];   /* the main loop's new pattern: what, its accent, its chance (%) */
+static volatile uint32_t g_dgen;                /* a new pattern is there (the main loop counts) */
+static volatile uint8_t apat[16], aprob[16];    /* the pattern playing (the audio's copy: it evolves) */
 static volatile int32_t vis_step = -1;
 static volatile uint32_t vis_kick_seq, vis_snare_seq, vis_hat_seq;
+static int32_t gn_motif_note(int32_t up);       /* (the machine's, below) */
+static int32_t sec_drums = 256;                 /* the section's say in how busy the drums are (0..256) */
 static struct {
-    uint32_t pos, len, step, kph, sph, pc, pm, pic, pim;
-    int32_t on, kamp, kpe, samp, sic1, sic2, hamp, hdec, hx, pamp, pidx;
+    uint32_t pos, len, step, bar, gen, kph, sph, pc, pm, pic, pim, pend;
+    int32_t on, fade, kamp, kat, kpe, samp, sat, sic1, sic2, hamp, hat_, hdec, hx, hlp, pamp, pidx, lp, lpr, ac;
+    uint8_t pf;                                 /* the step waiting for its moment (humanised) */
 } dm;
-static void drums_hit(void)
+static void drums_hit(uint32_t f, int32_t a)
 {
-    uint32_t f = dpat[dm.step], a = dacc[dm.step];
-    int32_t lv = par[P_DLEVEL];
-    if (f & DK_KICK) dm.kamp = (int32_t)(20000u + a * 60u) * lv / 100, dm.kpe = 32767, dm.kph = 0, vis_kick_seq = vis_kick_seq + 1u;
-    if (f & DK_SNARE) dm.samp = (int32_t)(12000u + a * 90u) * lv / 100, dm.sph = 0, vis_snare_seq = vis_snare_seq + 1u;
-    if (f & (DK_HAT | DK_OPEN)) dm.hamp = (int32_t)(3500u + a * 90u) * lv / 100, dm.hdec = f & DK_OPEN ? 12 : 9,
+    int32_t lv = par[P_DLEVEL] * dm.fade >> 8;
+    if (f & DK_KICK) dm.kamp = (14000 + a * 40) * lv / 100, dm.kat = 0, dm.kpe = 32767, dm.kph = 0x40000000u, vis_kick_seq = vis_kick_seq + 1u;
+    if (f & DK_SNARE) dm.samp = (5000 + a * 36) * lv / 100, dm.sat = 0, dm.sph = 0, vis_snare_seq = vis_snare_seq + 1u;
+    if (f & (DK_HAT | DK_OPEN)) dm.hamp = (1400 + a * 22 + (int32_t)arnd_n(700)) * lv / 100, dm.hat_ = 0, dm.hdec = f & DK_OPEN ? 12 : 10,
                                 vis_hat_seq = vis_hat_seq + 1u;
     if (f & DK_PERC) {
-        const scale_t *s = &SCALES[g_scale];
-        int32_t note = clamp(72 + g_root + scale_note(s, ddeg[dm.step] % (2u * s->n)), 60, 96);
-        dm.pic = pitch_inc((uint32_t)note * 16u), dm.pim = dm.pic * 2u;
-        dm.pamp = (int32_t)(2500u + a * 30u) * lv / 100, dm.pidx = 26000;
+        int32_t note = gn_motif_note(1);
+        while (note > 91) note -= 12;
+        dm.pic = pitch_inc((uint32_t)clamp(note, 55, 91) * 16u), dm.pim = dm.pic;
+        dm.pamp = (2600 + a * 22) * lv / 100, dm.pidx = 9000;
     }
+}
+static void drums_step(void)                    /* a new step: what plays of it, and when */
+{
+    uint32_t s = dm.step, f = apat[s];
+    int32_t pr = aprob[s], keep = sec_drums;
+    if (s == 0u && (dm.bar & 3u) == 0u && dm.on) {   /* every four bars EVOLVE moves a step (not the downbeat) */
+        int32_t ev = par[P_EVOLVE];
+        if ((int32_t)arnd_n(127) < ev) {
+            uint32_t j = 1u + arnd_n(15), what = arnd_n(4);
+            static const uint8_t KIND[4] = {DK_HAT, DK_PERC, DK_KICK, DK_SNARE};
+            if (apat[j] & KIND[what]) apat[j] = (uint8_t)(apat[j] & ~KIND[what]);
+            else apat[j] = (uint8_t)(apat[j] | KIND[what]), aprob[j] = (uint8_t)(30 + arnd_n(50));
+        }
+    }
+    if (!f) return;
+    if (!(s == 0u || pr >= 100)) {              /* chance, the section's mood scaling everything but the core */
+        if ((int32_t)arnd_n(100) >= (pr * keep) >> 8) return;
+    }
+    if ((f & DK_KICK) && keep < 140 && s != 0u) f &= ~DK_KICK;   /* (calm: the heartbeat on the one only) */
+    if ((f & DK_SNARE) && keep < 100) f &= ~DK_SNARE;
+    dm.pf = (uint8_t)f;
+    dm.ac = 40 + (int32_t)arnd_n(60) + (s % 4u == 0u ? 25 : 0);
+    dm.pend = s == 0u || s == 8u ? 1u : 1u + arnd_n(150);   /* a few ms late, but the beats */
 }
 static void drums_render(void)
 {
     uint32_t i, bpm = 60u + (uint32_t)par[P_TEMPO] * 80u / 127u, base = 661500u / bpm, sw = (uint32_t)par[P_SWING];
+    int32_t klp = 7000 + PAR(P_BRIGHT) * 110;   /* the dark filter over them all */
     tsvf_t c;
-    if (g_drums && !dm.on) dm.on = 1, dm.step = 15, dm.pos = 0, dm.len = 1;   /* (starts on the next frame: step 0) */
-    if (!g_drums) dm.on = 0, vis_step = -1;
-    if (!dm.on && !dm.kamp && !dm.samp && !dm.hamp && !dm.pamp) return;
-    tsvf_coef_k(&c, 96 << 8, 3000);             /* the snare's band, ~1.8 kHz */
+    if (g_dgen != dm.gen) {                     /* a new pattern: copy it, start from the top, ease in over a bar */
+        uint32_t k;
+        dm.gen = g_dgen;
+        for (k = 0; k < 16u; k++) apat[k] = dpat[k], aprob[k] = dprob[k];
+        dm.fade = 40;
+    }
+    if (g_drums && !dm.on) dm.on = 1, dm.step = 15, dm.pos = 0, dm.len = 1, dm.bar = 0, dm.fade = 40;
+    if (!g_drums) dm.on = 0, dm.pend = 0, vis_step = -1;
+    if (!dm.on && !dm.kamp && !dm.samp && !dm.hamp && !dm.pamp) {   /* (silent: nothing to do; the filter's last crumbs go) */
+        if (dm.lp > -8 && dm.lp < 8 && dm.lpr > -8 && dm.lpr < 8) { dm.lp = dm.lpr = 0; return; }
+    }
+    tsvf_coef_k(&c, 84 << 8, 2400);             /* the rim's band, ~1 kHz */
     for (i = 0; i < VB; i++) {
-        int32_t y = 0, rv = 0, dly = 0, n;
+        int32_t y = 0, rv = 0, dly = 0, hr = 0, n;
         if (dm.on && ++dm.pos >= dm.len) {      /* the next step; SWING: the off-beats come late, the on-beats early */
             dm.pos = 0, dm.step = (dm.step + 1u) & 15u;
+            if (dm.step == 0u) dm.bar++;
+            if (dm.fade < 256) dm.fade += 14;
+            if (dm.fade > 256) dm.fade = 256;
             dm.len = dm.step & 1u ? base - base * sw / 400u : base + base * sw / 400u;
             vis_step = (int32_t)dm.step;
-            drums_hit();
+            drums_step();
         }
-        if (dm.kamp) {
-            uint32_t f = 46u + ((94u * (uint32_t)dm.kpe) >> 15);
+        if (dm.pend && --dm.pend == 0u) drums_hit(dm.pf, dm.ac);
+        if (dm.kamp) {                          /* the heartbeat: ~90 Hz falling to ~40, eased in over 3 ms */
+            uint32_t f = 40u + ((50u * (uint32_t)dm.kpe) >> 15);
+            int32_t a = dm.kat < 128 ? (dm.kamp * dm.kat) >> 7 : dm.kamp;
+            dm.kat++;
             dm.kph += f * 97391u;
-            n = (sin15(dm.kph) * dm.kamp) >> 15;
-            y += n, rv += n >> 3;
-            dm.kpe -= (dm.kpe >> 8) + (dm.kpe > 0);
-            dm.kamp -= (dm.kamp >> 12) + (dm.kamp > 0);
+            n = (sin15(dm.kph) * a) >> 15;
+            y += n, rv += n >> 2;
+            dm.kpe -= (dm.kpe >> 9) + (dm.kpe > 0);
+            dm.kamp -= (dm.kamp >> 13) + (dm.kamp > 0);
         }
-        if (dm.samp) {
-            int32_t x = (int32_t)(arnd() >> 17) - 16384;
-            dm.sph += 185u * 97391u;
-            n = (((tsvf_any(&c, 3000, FT_BP, x, &dm.sic1, &dm.sic2) + (sin15(dm.sph) >> 2)) * dm.samp) >> 15);
-            y += n, rv += n >> 1;
+        if (dm.samp) {                          /* the rim: a brushed band of noise, eased in, and a small knock */
+            int32_t x = (int32_t)(arnd() >> 17) - 16384, a = dm.sat < 260 ? (dm.samp * dm.sat) / 260 : dm.samp;
+            dm.sat++;
+            dm.sph += 820u * 97391u;
+            n = ((tsvf_any(&c, 2400, FT_BP, x, &dm.sic1, &dm.sic2) + (dm.sat < 600 ? sin15(dm.sph) >> 3 : 0)) * a) >> 15;
+            y += n >> 1, rv += n + (n >> 1);
             dm.samp -= (dm.samp >> 11) + (dm.samp > 0);
         }
-        if (dm.hamp) {
-            int32_t x = (int32_t)(arnd() >> 17) - 16384, h = x - dm.hx;
+        if (dm.hamp) {                          /* the shaker: bright noise, eased in, to the right */
+            int32_t x = (int32_t)(arnd() >> 17) - 16384, h = x - dm.hx, a = dm.hat_ < 130 ? (dm.hamp * dm.hat_) / 130 : dm.hamp;
+            dm.hat_++;
             dm.hx = x;
-            n = (h * dm.hamp) >> 15;
-            y += n, rv += n >> 2;
+            dm.hlp += (h - dm.hlp) >> 1;
+            n = (dm.hlp * a) >> 15;
+            hr += n, rv += n >> 1;
             dm.hamp -= (dm.hamp >> dm.hdec) + (dm.hamp > 0);
         }
-        if (dm.pamp) {
+        if (dm.pamp) {                          /* the mallet: a sine with a little bend, into the echo */
             dm.pc += dm.pic, dm.pm += dm.pim;
             n = (sin15(dm.pc + (uint32_t)(sin15(dm.pm) * dm.pidx)) * dm.pamp) >> 15;
-            y += n, rv += n >> 1, dly += n;
-            dm.pamp -= (dm.pamp >> 11) + (dm.pamp > 0);
+            rv += n, dly += n + (n >> 1);
+            bus_l[i] += (n * 3) >> 2, bus_r[i] += n >> 2;
+            dm.pamp -= (dm.pamp >> 12) + (dm.pamp > 0);
             dm.pidx -= dm.pidx >> 9;
         }
-        bus_l[i] += y, bus_r[i] += y, bus_rev[i] += rv, bus_dly[i] += dly;
+        dm.lp += ((y - dm.lp) * klp) >> 15;     /* (one pole: the dark filter) */
+        dm.lpr += ((hr - dm.lpr) * klp) >> 15;
+        bus_l[i] += dm.lp + (dm.lpr >> 2), bus_r[i] += dm.lp + dm.lpr, bus_rev[i] += rv, bus_dly[i] += dly;
     }
 }
 
@@ -514,7 +568,7 @@ static uint32_t dl_w;
 static int32_t dl_fl, dl_fr;
 static void echo_render(void)
 {
-    int32_t echo = par[P_ECHO], fb = 9000 + echo * 12500 / 127, ret = 9000 + echo * 15000 / 127;
+    int32_t echo = PAR(P_ECHO), fb = 9000 + echo * 12500 / 127, ret = 9000 + echo * 15000 / 127;
     uint32_t w = dl_w, i;
     int32_t fl = dl_fl, fr = dl_fr;
     for (i = 0; i < VB; i++) {
@@ -531,56 +585,141 @@ static void echo_render(void)
     dl_w = w, dl_fl = fl, dl_fr = fr;
 }
 
-/* the machine: what plays the pads and the bells when nobody does */
+/* the machine: what plays the pads and the bells when nobody does. The harmony walks from chord to chord the way
+ * chords lead (CHORDS: how often); a motif of three to five notes keeps coming back, on each chord, turned about as
+ * EVOLVE allows; a new chord sometimes blooms as two or three pads at once; and the piece goes through sections (calm,
+ * bloom, night, sparkle, drift), each leaning the knobs a little its way, and now and then (EVOLVE high) to a new key */
 static struct {
     int32_t t_pad, t_bell, t_chord, deg, chord;
-    int32_t t_next, next_note, casc, casc_deg;  /* a bell's answer; a fall of bells under way */
+    int32_t t_next, next_note, casc, casc_deg;  /* a bell's phrase under way; a fall of bells */
     int32_t intro;                              /* the first notes after switch-on come quickly */
-} gn = {30, 700, 5000, 2, 0, 0, 0, 0, 0, 3};
-static uint32_t gn_casc_seen;
+    int32_t mot[5], mlen, mi, bloom;            /* the motif (degrees over the chord), where it is; pads to bloom */
+    int32_t phrase, ph_i, ph_dir;               /* a bell phrase: notes left, where in the motif, which way */
+    int32_t t_sec, mood, tgt[NPARAM];           /* the section: blocks left, which, where it leans the knobs */
+    uint32_t wph;                               /* the slow wander under the sections */
+} gn = {30, 700, 5000, 2, 0, 0, 0, 0, 0, 3, {0, 2, 1, 4, 0}, 4, 0, 0, 0, 0, 1, BLK(30000), 0, {0}, 0};
 
-static int32_t pad_base(void) { return 48 + g_root + 12 * (g_oct + SCENES[g_scene].reg); }
+static int32_t pad_base(void) { return 48 + EROOT + 12 * (g_oct + SCENES[g_scene].reg); }
+static int32_t gn_motif_note(int32_t up)        /* the motif's next note on the chord (for the drums' mallets: up an
+                                                 * octave or two) */
+{
+    const scale_t *s = &SCALES[g_scale];
+    int32_t d = gn.chord + gn.mot[gn.mi % gn.mlen], note;
+    gn.mi = (gn.mi + 1) % gn.mlen;
+    if (d < 0) d += (int32_t)s->n;
+    note = pad_base() + 12 * up + scale_note(s, d);
+    return note;
+}
+static void motif_turn(void)                    /* EVOLVE: the motif changes a little: a note moves, it turns over, or
+                                                 * (rarely) a new one */
+{
+    int32_t r = (int32_t)arnd_n(100), k;
+    if (r < 50) {
+        k = (int32_t)arnd_n((uint32_t)gn.mlen);
+        gn.mot[k] = clamp(gn.mot[k] + ((int32_t)arnd_n(5) - 2), -2, 6);
+    } else if (r < 70) {
+        for (k = 0; k < gn.mlen; k++) gn.mot[k] = clamp(4 - gn.mot[k], -2, 6);   /* upside down */
+    } else if (r < 85) {
+        int32_t t = gn.mot[0];
+        for (k = 0; k + 1 < gn.mlen; k++) gn.mot[k] = gn.mot[k + 1];
+        gn.mot[gn.mlen - 1] = t;
+    } else {
+        int32_t d = (int32_t)arnd_n(3);
+        gn.mlen = 3 + (int32_t)arnd_n(3);
+        for (k = 0; k < gn.mlen; k++) d = clamp(d + (int32_t)arnd_n(5) - 2, -1, 6), gn.mot[k] = d;
+    }
+}
+/* the sections: how each leans DENSITY, BRIGHT, SPACE, DRIFT, ECHO, BELLS, WIND, DRONE, VOICES; and the drums */
+enum { MOOD_HOME, MOOD_CALM, MOOD_BLOOM, MOOD_NIGHT, MOOD_SPARKLE, MOOD_DRIFT, NMOOD };
+static const int8_t MOOD_LEAN[NMOOD][9] = {
+    {0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {-28, -16, 10, -10, 0, -18, 0, 16, -40},
+    {22, 18, 0, 6, 10, 14, -10, 0, 30},
+    {-12, -26, 18, 0, 6, -24, 28, 22, -20},
+    {-14, 12, 6, 0, 22, 36, -6, -10, -10},
+    {0, -6, 12, 34, 8, 0, 14, 6, 0},
+};
+static const uint8_t MOOD_P[9] = {P_DENSITY, P_BRIGHT, P_SPACE, P_DRIFT, P_ECHO, P_BELLS, P_WIND, P_DRONE, P_VOICES};
+static const int16_t MOOD_DRUMS[NMOOD] = {256, 120, 256, 70, 200, 170};
+static void gen_section(void)
+{
+    int32_t ev = par[P_EVOLVE], k, mood;
+    gn.t_sec = BLK((40000 + (int32_t)arnd_n(80000)) * (170 - ev) / 100);   /* ~1 .. ~3 min at 64; quicker turned up */
+    for (k = 0; k < NPARAM; k++) gn.tgt[k] = 0;
+    if (ev <= 0) { gn.mood = MOOD_HOME, sec_drums = 256; return; }
+    do mood = (int32_t)arnd_n(NMOOD); while (mood == gn.mood);
+    gn.mood = mood;
+    for (k = 0; k < 9; k++) gn.tgt[MOOD_P[k]] = MOOD_LEAN[mood][k] * (32 + ev) / 159;
+    sec_drums = MOOD_DRUMS[mood];
+    if ((int32_t)arnd_n(100) < ev / 2) motif_turn();
+    if (ev > 70 && (int32_t)arnd_n(100) < (ev - 70)) {   /* a new key: up a fifth or a fourth, or home again */
+        if (g_shift && arnd_n(2)) g_shift = 0;
+        else g_shift = (g_shift + (arnd_n(2) ? 7 : 5)) % 12;
+    }
+    vis_mood = mood;
+}
+static void gen_lean(void)                      /* once a block: the knobs ease towards the section's lean, with a slow
+                                                 * wander under it (EVOLVE) */
+{
+    int32_t ev = par[P_EVOLVE], k;
+    gn.wph += 3100u;                            /* (a cycle ~2.3 h; its harmonics below, minutes) */
+    for (k = 0; k < 9; k++) {
+        int32_t p = MOOD_P[k], w = (sin15(gn.wph * (uint32_t)(23 + k * 11) + (uint32_t)k * 0x1C000000u) * ev) >> 19;
+        int32_t want = (gn.tgt[p] + w) << 8;
+        md[p] += (want - md[p]) >> 10;          /* (~6 s to get most of the way) */
+    }
+}
+
 static void gen_pad(void)
 {
     const scale_t *s = &SCALES[g_scale];
     static const int8_t STEP[8] = {-2, -1, -1, 1, 1, 2, 3, -3};
-    static const int8_t TONE[3] = {0, 2, 4};
-    int32_t dens = par[P_DENSITY], n = (int32_t)s->n, top = range_top(s), note = 0, most = 1 + par[P_VOICES] * 5 / 127;
+    static const int8_t TONE[4] = {0, 2, 4, 6};
+    int32_t dens = PAR(P_DENSITY), n = (int32_t)s->n, top = range_top(s), note = 0, most = 1 + PAR(P_VOICES) * 5 / 127;
     uint32_t k, t, sounding = 0;
     pv_t *v;
     for (k = 0; k < NV; k++) sounding += pv[k].gate && pv[k].id < 0;
-    if ((int32_t)sounding >= most || !(v = pad_free())) return;
-    for (t = 0; t < 4u; t++) {
-        int32_t deg, dup = 0;
-        if (arnd_n(100) < 58u) {
-            deg = gn.chord + TONE[arnd_n(3)] + n * (int32_t)arnd_n(2);
-        } else {
+    if (((int32_t)sounding >= most && !gn.bloom) || !(v = pad_free())) return;
+    for (t = 0; t < 5u; t++) {
+        int32_t deg, dup = 0, r = (int32_t)arnd_n(100);
+        if (gn.bloom || r < 42) {               /* a tone of the chord (its seventh now and then) */
+            deg = gn.chord + TONE[arnd_n(arnd_n(127) < (uint32_t)par[P_EVOLVE] / 2u ? 4u : 3u)] + n * (int32_t)arnd_n(2);
+        } else if (r < 72) {                    /* the motif's next note, on this chord */
+            deg = gn.chord + gn.mot[gn.mi % gn.mlen];
+            gn.mi = (gn.mi + 1) % gn.mlen;
+            if (deg < 0) deg += n;
+        } else {                                /* a step or two from the last */
             gn.deg += STEP[arnd_n(8)];
             if (gn.deg < 0) gn.deg = -gn.deg;
             if (gn.deg > top) gn.deg = 2 * top - gn.deg;
             deg = gn.deg;
         }
-        note = pad_base() + scale_note(s, deg);
+        if (deg > top) deg -= n;
+        note = pad_base() + scale_note(s, deg < 0 ? 0 : deg);
         while (note > 88) note -= 12;
         for (k = 0; k < NV; k++) dup |= (pv[k].gate || pv[k].env) && pv[k].note == note;
         if (!dup) break;
     }
+    if (gn.bloom > 0) gn.bloom--;
     pad_start(v, note, -1, BLK(((4200 + (int32_t)arnd_n(6500) + (127 - dens) * 30) * len256_of()) >> 8), atk10_of());
 }
-static void gen_bell(void)
+static void gen_bell(void)                      /* a bell, or a phrase of the motif: up or down it, an octave up */
 {
     const scale_t *s = &SCALES[g_scale];
-    int32_t n = (int32_t)s->n, deg = (int32_t)arnd_n((uint32_t)(2 * n + 1));
-    int32_t base = 72 + g_root + 12 * g_oct;
-    bell_strike(base + scale_note(s, deg), 50 + (int32_t)arnd_n(70), 0);
-    if ((int32_t)arnd_n(127) < par[P_ANSWER]) { /* ANSWER: sometimes an answer, a step or two up */
-        gn.t_next = BLK(140 + (int32_t)arnd_n(380));
-        gn.next_note = base + scale_note(s, deg + 1 + (int32_t)arnd_n(2));
+    int32_t base = 72 + EROOT + 12 * g_oct, deg;
+    if (arnd_n(100) < 55u) {
+        gn.phrase = 1 + (int32_t)arnd_n((uint32_t)gn.mlen), gn.ph_i = (int32_t)arnd_n((uint32_t)gn.mlen), gn.ph_dir = arnd_n(3) ? 1 : -1;
+        deg = gn.chord + gn.mot[gn.ph_i];
+        if (gn.phrase > 1) gn.t_next = BLK(260 + (int32_t)arnd_n(480)), gn.next_note = 1;
+        gn.phrase--;
+    } else {
+        deg = gn.chord + (int32_t)arnd_n((uint32_t)(2 * s->n + 1)) - (int32_t)s->n / 2;
     }
+    bell_strike(base + scale_note(s, deg < 0 ? deg + (int32_t)s->n : deg), 50 + (int32_t)arnd_n(70), 0);
 }
 static void gen_tick(void)                      /* once a block */
 {
-    int32_t dens = par[P_DENSITY], bells = par[P_BELLS], base, mean;
+    int32_t dens = PAR(P_DENSITY), bells = PAR(P_BELLS), base, mean;
     while (ev_r != ev_w) {                      /* the keys and MIDI first */
         uint32_t e = evq[ev_r % 32u], id = e >> 16, k;
         int32_t note = (int32_t)(e >> 8 & 127u);
@@ -594,21 +733,16 @@ static void gen_tick(void)                      /* once a block */
                 if (pv[k].gate && pv[k].id == (int32_t)id) pv[k].gate = 0;
         }
     }
-    if (g_casc != gn_casc_seen) {               /* ARP: a fall of bells from the top of the scale */
-        gn_casc_seen = g_casc;
-        gn.casc = 6, gn.casc_deg = 2 * (int32_t)SCALES[g_scale].n + 2, gn.t_next = 1, gn.next_note = 0;
-    }
-    if (gn.t_next > 0 && --gn.t_next == 0) {
-        if (gn.casc > 0) {
-            const scale_t *s = &SCALES[g_scale];
-            bell_strike(72 + g_root + 12 * g_oct + scale_note(s, gn.casc_deg), 60 + gn.casc * 10, 1);
-            gn.casc_deg -= 1 + (int32_t)arnd_n(2);
-            if (gn.casc_deg < 0) gn.casc_deg = 0;
-            if (--gn.casc > 0) gn.t_next = BLK(110 + (int32_t)arnd_n(90));
-        } else if (gn.next_note) {
-            bell_strike(gn.next_note, 40 + (int32_t)arnd_n(50), 0);
-            gn.next_note = 0;
-        }
+    if (--gn.t_sec <= 0) gen_section();
+    gen_lean();
+    if (gn.t_next > 0 && --gn.t_next == 0 && gn.next_note) {   /* the bell phrase goes on */
+        const scale_t *s = &SCALES[g_scale];
+        int32_t deg;
+        gn.ph_i = ((gn.ph_i + gn.ph_dir) % gn.mlen + gn.mlen) % gn.mlen;
+        deg = gn.chord + gn.mot[gn.ph_i];
+        bell_strike(72 + EROOT + 12 * g_oct + scale_note(s, deg < 0 ? deg + (int32_t)s->n : deg), 36 + (int32_t)arnd_n(50), 0);
+        if (gn.phrase-- > 0) gn.t_next = BLK(240 + (int32_t)arnd_n(520));
+        else gn.next_note = 0;
     }
     if (!g_run) return;
     if (--gn.t_pad <= 0) {                      /* DENSITY: a new pad note every ~14 s .. ~0.9 s */
@@ -616,18 +750,20 @@ static void gen_tick(void)                      /* once a block */
         mean = base - ((base >> 1) * (dens & 31) >> 5);
         gn.t_pad = BLK(mean / 2 + (int32_t)arnd_n((uint32_t)mean));
         if (gn.intro > 0) gn.intro--, gn.t_pad = BLK(700 + (int32_t)arnd_n(900));
+        if (gn.bloom > 0) gn.t_pad = BLK(300 + (int32_t)arnd_n(900));
         gen_pad();
     }
-    if (--gn.t_bell <= 0) {                     /* BELLS: off, or one every ~12 s .. ~0.9 s (more with DENSITY) */
+    if (--gn.t_bell <= 0) {                     /* BELLS: off, or one (or a phrase) every ~12 s .. ~0.9 s */
         mean = 12000 - bells * 86 - dens * 6;
         gn.t_bell = BLK(mean / 2 + (int32_t)arnd_n((uint32_t)mean));
-        if (bells > 0 && !gn.casc) gen_bell();
+        if (bells > 0 && !gn.next_note) gen_bell();
     }
-    if (--gn.t_chord <= 0) {                    /* CHORDS: the harmony moves: the pads lean on another degree a while */
-        static const int8_t CH[6] = {0, 0, 3, 4, 5, 2};
-        int32_t mean_c = 60000 - par[P_CHORDS] * 52000 / 127;   /* every ~60 s .. ~8 s */
+    if (--gn.t_chord <= 0) {                    /* CHORDS: the harmony moves on, the way chords lead */
+        static const int8_t NEXT[7][4] = {{3, 4, 5, 1}, {4, 6, 3, 5}, {5, 3, 0, 4}, {0, 4, 1, 6}, {0, 5, 3, 2}, {3, 1, 4, 0}, {0, 4, 2, 5}};
+        int32_t mean_c = 60000 - par[P_CHORDS] * 52000 / 127, n = (int32_t)SCALES[g_scale].n;   /* every ~60 s .. ~8 s */
         gn.t_chord = BLK(mean_c / 2 + (int32_t)arnd_n((uint32_t)mean_c));
-        gn.chord = CH[arnd_n(6)];
+        gn.chord = NEXT[gn.chord % 7][arnd_n(4)] % n;
+        if ((int32_t)arnd_n(160) < par[P_EVOLVE]) gn.bloom = 2 + (int32_t)arnd_n(2), gn.t_pad = BLK(200);   /* a bloom */
         vis_chord = gn.chord;
         vis_chord_seq = vis_chord_seq + 1u;
     }
@@ -645,7 +781,7 @@ static void out_usb16(const int32_t *o, int32_t *u, uint32_t n)   /* the output'
 static void app_audio(int32_t *out, uint32_t n)
 {
     uint32_t i, k;
-    int32_t m = clamp(fm1_master(), 0, 4092), pk = 0, space = par[P_SPACE];
+    int32_t m = clamp(fm1_master(), 0, 4092), pk = 0, space = PAR(P_SPACE);
     if (n != VB) return;
     a_blk++;
     for (i = 0; i < VB; i++) bus_l[i] = bus_r[i] = bus_rev[i] = bus_dly[i] = 0;
@@ -658,7 +794,7 @@ static void app_audio(int32_t *out, uint32_t n)
     drums_render();
     echo_render();
     rv_size = g_freeze ? RV_INF : 46 + space * 80 / 127;   /* SPACE: ~2 s .. ~30 s; FREEZE: for ever */
-    rv_damp = 74 - par[P_BRIGHT] * 40 / 127;
+    rv_damp = 74 - PAR(P_BRIGHT) * 40 / 127;
     rv_mix = 50 + space * 77 / 127;
     rv_pre = 18;
     hall_render(bus_rev, out, VB);              /* (out comes zeroed: the reverb goes straight in) */
@@ -974,8 +1110,8 @@ static void ov_setup(uint32_t now)              /* this frame's light for the pa
         int32_t st = vis_step, row;
         for (row = 0; row < 4; row++)
             for (k = 0; k < 16u; k++) {
-                int32_t xx = 18 + (int32_t)k * 204 / 15, yy = 70 + row * 20, on = dpat[k] & ROWF[row], a;
-                a = on ? (int32_t)k == st ? 255 : 190 + dacc[k] / 4 : (int32_t)k == st ? 110 : 50;
+                int32_t xx = 18 + (int32_t)k * 204 / 15, yy = 70 + row * 20, on = apat[k] & ROWF[row], a;
+                a = on ? (int32_t)k == st ? 255 : 90 + aprob[k] * 6 / 5 : (int32_t)k == st ? 110 : 50;   /* (brighter: likelier) */
                 if (!g_drums) a = a / 2;
                 dot_add(xx, yy, on ? ROWR[row] : 1, (a * f) >> 8, (int32_t)k == st && on ? wpal : pal_now[ROWP[row]]);
             }
@@ -1401,28 +1537,30 @@ static void strip_draw(uint32_t s, uint32_t now)
 #define SET_MAGIC 0x33525541u                   /* "AUR3" */
 typedef struct { uint32_t magic; uint8_t scene, scale, root, oct, run, kmode, drums, par[NPARAM]; } set_t;
 
-static void drums_new(void)                     /* a new pattern: BUSY says how much */
+static void drums_new(void)                     /* a new pattern, for the haze: BUSY says how much; each step a chance */
 {
-    int32_t b = par[P_BUSY], half = vrnd_n(3) == 0u, s;
-    uint8_t p[16], a[16], d[16];
-    for (s = 0; s < 16; s++) p[s] = 0, a[s] = (uint8_t)(50 + vrnd_n(40) + (s % 4 == 0 ? 30 : s % 2 == 0 ? 12 : 0)), d[s] = (uint8_t)vrnd_n(14);
-    p[0] |= DK_KICK;
-    for (s = 1; s < 16; s++) {                  /* kicks: on the beats more than between them */
-        int32_t pr = s == 8 && !half ? 60 : s % 4 == 0 ? 22 : s % 2 == 0 ? 12 : 4;
-        if ((int32_t)vrnd_n(100) < pr * (30 + b) / 80) p[s] |= DK_KICK;
+    int32_t b = par[P_BUSY], half = vrnd_n(10) < 7u, s;
+    uint8_t p[16], a[16], pr[16];
+    for (s = 0; s < 16; s++) p[s] = 0, pr[s] = 100, a[s] = (uint8_t)(40 + vrnd_n(40) + (s % 4 == 0 ? 30 : s % 2 == 0 ? 10 : 0));
+    p[0] |= DK_KICK;                            /* the heartbeat: the one, and an answer */
+    if (half) s = vrnd_n(2) ? 10 : 11, p[s] |= DK_KICK, pr[s] = (uint8_t)(55 + vrnd_n(30));
+    else p[8] |= DK_KICK, pr[8] = 85;
+    if (vrnd_n(100) < (uint32_t)(10 + b / 4)) s = vrnd_n(2) ? 6 : 14, p[s] |= DK_KICK, pr[s] = (uint8_t)(20 + vrnd_n(30));
+    if (half) p[8] |= DK_SNARE, pr[8] = 90;     /* the rim: half time mostly */
+    else p[4] |= DK_SNARE, p[12] |= DK_SNARE, pr[4] = pr[12] = 80;
+    for (s = 1; s < 16; s += 2)                 /* ghost rims */
+        if ((int32_t)vrnd_n(100) < b / 6) p[s] |= DK_SNARE, pr[s] = (uint8_t)(20 + vrnd_n(25)), a[s] = (uint8_t)(a[s] / 3);
+    for (s = 0; s < 16; s++)                    /* the shaker: every sixteenth may, the eighths more often */
+        if (vrnd_n(100) < (uint32_t)(40 + b / 2)) p[s] |= DK_HAT, pr[s] = pr[s] < 100 ? pr[s] : (uint8_t)(s % 2 ? 25 + b / 3 : 55 + b / 4);
+    if (vrnd_n(2)) s = vrnd_n(2) ? 14 : 6, p[s] = (uint8_t)((p[s] & ~DK_HAT) | DK_OPEN), pr[s] = 60;
+    for (s = 0; s < 2 + b / 32; s++) {          /* mallets: on the chord, the motif */
+        int32_t j = (int32_t)vrnd_n(16);
+        p[j] |= DK_PERC;
+        if (pr[j] == 100 && j) pr[j] = (uint8_t)(45 + vrnd_n(40));
     }
-    if (half) p[8] |= DK_SNARE; else p[4] |= DK_SNARE, p[12] |= DK_SNARE;   /* the backbeat, or half time */
-    for (s = 1; s < 16; s += 2)                 /* ghost snares */
-        if ((int32_t)vrnd_n(100) < b / 10) p[s] |= DK_SNARE, a[s] = (uint8_t)(a[s] / 3);
-    for (s = 0; s < 16; s++) {                  /* hats: the eighths, then sixteenths as it gets busier; an open one */
-        if (s % 2 == 0 && (int32_t)vrnd_n(100) < 25 + b / 2) p[s] |= DK_HAT;
-        if (s % 2 == 1 && (int32_t)vrnd_n(100) < b / 3) p[s] |= DK_HAT, a[s] = (uint8_t)(a[s] * 2 / 3);
-    }
-    if (vrnd_n(2)) s = vrnd_n(2) ? 14 : 6, p[s] = (uint8_t)((p[s] & ~DK_HAT) | DK_OPEN);
-    for (s = 0; s < 2 + b / 40; s++) p[vrnd_n(16)] |= DK_PERC;   /* a few blips in the scale */
-    for (s = 0; s < 16; s++) dpat[s] = p[s], dacc[s] = a[s], ddeg[s] = d[s];
+    for (s = 0; s < 16; s++) dpat[s] = p[s], dacc[s] = a[s], dprob[s] = pr[s];
+    g_dgen = g_dgen + 1u;
 }
-
 static void scene_load(uint32_t s, int with_sets)   /* a scene: its scale, its root and where its knobs start */
 {
     const scene_t *sc;
@@ -1441,7 +1579,7 @@ static void hud_status(uint32_t ms)
 {
     char l[32], r[20], *q;
     q = put_s(l, SCENES[g_scene].name);
-    q = put_s(r, NOTE_NAME[g_root]);
+    q = put_s(r, NOTE_NAME[EROOT]);
     q = put_s(q, " ");
     put_s(q, SCALES[g_scale].name);
     hud_msg(l, r, ms);
@@ -1450,6 +1588,7 @@ static void hud_status(uint32_t ms)
 static void app_main(void)
 {
     uint32_t prev_keys = 0, k, t_led = 0, latched = 0, sel_used = 0, arp_used = 0;
+    int32_t shift_seen = 0;
     int32_t key_note[27];
     set_t st;
     for (k = 0; k < 27u; k++) key_note[k] = -1;
@@ -1491,7 +1630,14 @@ static void app_main(void)
         }
         if ((d = fm1_enc_take(ENC_PRESETS)) != 0) {
             g_root = ((g_root + d) % 12 + 12) % 12;
-            hud_msg("ROOT", NOTE_NAME[g_root], 2600);
+            hud_msg("ROOT", NOTE_NAME[EROOT], 2600);
+        }
+
+        if (g_shift != shift_seen) {            /* the piece moved to a new key: say so */
+            char r[20], *q;
+            shift_seen = g_shift;
+            q = put_s(r, NOTE_NAME[EROOT]), q = put_s(q, " "), put_s(q, SCALES[g_scale].name);
+            hud_msg("NEW KEY", r, 3200);
         }
 
         /* the buttons */
@@ -1543,9 +1689,9 @@ static void app_main(void)
             if (down >> k & 1u) {
                 int32_t note = scale_snap(53 + (int32_t)k + 12 * g_oct);
                 if (fm1_in.buttons >> BTN_SEL & 1u) {
-                    g_root = (int32_t)((5u + k) % 12u);
+                    g_root = (int32_t)((5u + k + 12u - (uint32_t)g_shift) % 12u);
                     sel_used = 1;
-                    hud_msg("ROOT", NOTE_NAME[g_root], 2600);
+                    hud_msg("ROOT", NOTE_NAME[EROOT], 2600);
                 } else if (kmode == KM_BELLS) {
                     ev_put(k, note + 12, 3);
                 } else if (kmode == KM_HOLD) {
