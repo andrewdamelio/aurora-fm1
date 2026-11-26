@@ -15,14 +15,14 @@
  *   LFO    MOTION     RATE     SWEEP    WIDTH    TREMOLO    ribbons of their movement
  *   GLO    DRONE      TONE     FIFTH    SUB      BREATH     the drone's rings rising from under the horizon
  *   SEQ    MACHINE    CHORDS   RANGE    VOICES   EVOLVE     the scale as a constellation, its chord lit
- *   ARP    DRUMS      TEMPO    LEVEL    BUSY     SWING      (ARP held) the pattern as rows of lights, a playhead
+ *   ARP    DRUMS      TEMPO    LEVEL    BUSY     SWING      the pattern as rows of lights, a playhead (LEVEL 0: off)
  *
  *   ALGORITHM    the scene (its sound, its sky, its scale, its settings)      SELECT   the scale
  *   PRESETS      the root note                                                OCT-/+   the register (both: middle)
  *   keys         PADS: play pads, snapped to the scale; HOLD: a key latches its note; BELLS: strike bells
  *   SEL          tap: the keys' mode (PADS, HOLD, BELLS); held + a key: that key is the root
  *   PLAY         the machine plays / waits (lit: playing)      REC    FREEZE: the reverb and the sky hold still (lit)
- *   ARP          tap: the drums start (a new random pattern) or stop; held: their knobs      SAVE   keep all this
+ *   SAVE         keep all this as the power-on state
  *   MIDI in      notes play the pads
  */
 #define APP_NAME "AURORA"
@@ -71,7 +71,7 @@ enum { P_DENSITY, P_BRIGHT, P_SPACE, P_DRIFT,   /* HOME: the sky */
        P_RATE, P_SWEEP, P_WIDTH, P_TREMOLO,     /* LFO: their motion */
        P_DTONE, P_FIFTH, P_SUB, P_BREATH,       /* GLO: the drone */
        P_CHORDS, P_RANGE, P_VOICES, P_EVOLVE,   /* SEQ: the machine */
-       P_TEMPO, P_DLEVEL, P_BUSY, P_SWING,      /* ARP held: the drums */
+       P_TEMPO, P_DLEVEL, P_BUSY, P_SWING,      /* ARP: the drums (LEVEL 0: off) */
        NPARAM };
 static const char *const P_NAME[NPARAM] = {
     "DENSITY", "BRIGHT", "SPACE", "DRIFT", "ECHO", "BELLS", "WIND", "DRONE",
@@ -83,10 +83,10 @@ static const uint8_t P_DEF[NPARAM] = {
     64, 64, 90, 56, 60, 40, 30, 80,
     43, 53, 64, 85, 50, 40, 23, 0,
     56, 20, 90, 0, 50, 64, 0, 24,
-    64, 64, 80, 64, 19, 70, 50, 20};
-enum { PG_HOME, PG_FX, PG_ENV, PG_EDIT, PG_LFO, PG_GLO, PG_SEQ, NPAGE, PG_RHY = NPAGE, NVIEW };   /* (RHYTHM: while ARP is held) */
-static const uint8_t PAGE_BTN[NPAGE] = {BTN_HOME, BTN_FX, BTN_ENV, BTN_EDIT, BTN_LFO, BTN_GLO, BTN_SEQ};
-static const char *const PAGE_NAME[NVIEW] = {"SKY", "EFFECTS", "PAD SHAPE", "PAD TONE", "MOTION", "DRONE", "MACHINE", "DRUMS"};
+    64, 64, 80, 64, 19, 0, 50, 20};
+enum { PG_HOME, PG_FX, PG_ENV, PG_EDIT, PG_LFO, PG_GLO, PG_SEQ, PG_RHY, NPAGE };
+static const uint8_t PAGE_BTN[NPAGE] = {BTN_HOME, BTN_FX, BTN_ENV, BTN_EDIT, BTN_LFO, BTN_GLO, BTN_SEQ, BTN_ARP};
+static const char *const PAGE_NAME[NPAGE] = {"SKY", "EFFECTS", "PAD SHAPE", "PAD TONE", "MOTION", "DRONE", "MACHINE", "DRUMS"};
 enum { KM_PADS, KM_HOLD, KM_BELLS, NKMODE };
 static const char *const KM_NAME[NKMODE] = {"PADS", "HOLD", "BELLS"};
 
@@ -97,7 +97,7 @@ static volatile int32_t g_shift;                /* (the audio's) the key the sec
 #define EROOT ((g_root + g_shift) % 12)        /* the root as it sounds */
 static volatile int32_t vis_mood;
 static volatile int32_t g_scene, g_scale, g_root, g_oct, g_run = 1, g_freeze;
-static volatile int32_t g_drums;                /* the drums play (ARP) */
+static volatile int32_t g_drums;                /* the drums play (their LEVEL above 0) */
 
 typedef struct { const char *name; uint8_t n; uint8_t st[7]; } scale_t;
 static const scale_t SCALES[] = {
@@ -1426,7 +1426,7 @@ static void hud_draw(uint32_t y0, uint32_t now)   /* the HUD's text into this st
     if (y0 == 0u) {                             /* the top line: news, a knob, the page, what is held */
         if (hud_mode == HUD_MSG) tl = hud_l, tr = hud_r;
         else if (hud_mode == HUD_KNOB && hud_param < NPARAM) put_u(val, (uint32_t)par[hud_param]), tl = P_NAME[hud_param], tr = val;
-        else if (view == PG_RHY) tl = PAGE_NAME[view], tr = g_drums ? "PLAYING" : "OFF", cl = C_WHITE;
+        else if (view == PG_RHY) tl = PAGE_NAME[view], tr = g_drums ? "PLAYING" : "OFF: TURN LEVEL", cl = C_WHITE;
         else if (view != PG_HOME) tl = PAGE_NAME[view], tr = kmode != KM_PADS ? KM_NAME[kmode] : g_freeze ? "FROZEN" : "", cl = C_WHITE;
         else if (kmode != KM_PADS || g_freeze) tl = kmode != KM_PADS ? KM_NAME[kmode] : "", tr = g_freeze ? "FROZEN" : "";
         if (tl) cv_text(6, 4, &FONT_S, tl, cl);
@@ -1587,7 +1587,7 @@ static void hud_status(uint32_t ms)
 
 static void app_main(void)
 {
-    uint32_t prev_keys = 0, k, t_led = 0, latched = 0, sel_used = 0, arp_used = 0;
+    uint32_t prev_keys = 0, k, t_led = 0, latched = 0, sel_used = 0, busy_t = 0;
     int32_t shift_seen = 0;
     int32_t key_note[27];
     set_t st;
@@ -1597,7 +1597,7 @@ static void app_main(void)
         scene_load(st.scene, 0);
         g_scale = st.scale, g_root = st.root % 12u, g_oct = clamp((int32_t)st.oct - 1, -1, 1), g_run = st.run != 0;
         kmode = st.kmode < NKMODE ? st.kmode : KM_PADS;
-        if (st.drums) drums_new(), g_drums = 1;
+        if (par[P_DLEVEL] > 0) drums_new(), g_drums = 1;
         for (k = 0; k < NPARAM; k++) par[k] = st.par[k] & 127;
     }
     v_seed ^= fm1_ticks();
@@ -1611,12 +1611,12 @@ static void app_main(void)
         platform_poll();
         now = fm1_ms;
 
-        /* the knobs: the four of the page shown (the drums' while ARP is held) */
-        view = fm1_in.buttons >> BTN_ARP & 1u ? PG_RHY : page;
+        /* the knobs: the page's four */
+        view = page;
         for (k = 0; k < 4u; k++)
             if ((d = fm1_enc_take(ENC_KNOB1 + k)) != 0) {
                 uint32_t p = view * 4u + k;
-                if (view == PG_RHY) arp_used = 1;
+                if (p == P_BUSY) busy_t = now + 500u;   /* (BUSY: a new pattern once it settles) */
                 par[p] = clamp(par[p] + d * 4, 0, 127);
                 hud_mode = HUD_KNOB, hud_param = p, hud_until = now + 2600u;
             }
@@ -1651,11 +1651,12 @@ static void app_main(void)
             }
         if (pressed & 1u << BTN_PLAY) g_run = !g_run, hud_msg("THE MACHINE", g_run ? "PLAYS" : "WAITS", 2200);
         if (pressed & 1u << BTN_REC) g_freeze = !g_freeze, hud_msg("FREEZE", g_freeze ? "ON" : "OFF", 2200);
-        if (pressed & 1u << BTN_ARP) arp_used = 0;
-        if (released & 1u << BTN_ARP && !arp_used) {   /* ARP tapped: the drums start, on a new pattern, or stop */
-            if (!g_drums) drums_new();
-            g_drums = !g_drums;
-            hud_msg("DRUMS", g_drums ? "ON" : "OFF", 1800);
+        if (par[P_DLEVEL] > 0 && !g_drums) drums_new(), g_drums = 1;   /* the drums: LEVEL up from 0 starts them on a new
+                                                 * pattern; down to 0 stops them */
+        if (par[P_DLEVEL] == 0) g_drums = 0;
+        if (busy_t && (int32_t)(now - busy_t) >= 0) {
+            busy_t = 0;
+            if (g_drums) drums_new(), hud_msg("DRUMS", "NEW PATTERN", 1600);
         }
         if (pressed & 1u << BTN_SEL) sel_used = 0;
         if (released & 1u << BTN_SEL && !sel_used) {   /* SEL tapped: the keys' next mode */
@@ -1727,7 +1728,7 @@ static void app_main(void)
             for (k = 0; k < NPAGE; k++) fm1_led_key(PAGE_BTN[k], page == k);
             fm1_led_key(BTN_PLAY, g_run);
             fm1_led_key(BTN_REC, g_freeze);
-            fm1_led_key(BTN_ARP, g_drums && vis_step >= 0 && (vis_step & 3) < 2);   /* (the drums: it blinks the beat) */
+            fm1_led_key(BTN_ARP, g_drums ? vis_step >= 0 && (vis_step & 3) < 2 : page == PG_RHY);   /* (playing: it blinks the beat) */
             fm1_led_key(BTN_SEL, (int)(fm1_in.buttons >> BTN_SEL & 1u) || (kmode == KM_HOLD) || (kmode == KM_BELLS && (now & 512u)));
         }
 

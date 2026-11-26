@@ -86,7 +86,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
 <header class="band sky">
   <div class="wrap">
     <h1>AURORA on the FM-1</h1>
-    <p class="lede">An ambient machine that plays by itself and never quite repeats: pads move through chord progressions and keep returning to a motif, bells play phrases of it, and the piece drifts through sections and keys, over a drone and wind in a very large reverb. Every button opens a page of four knobs, and each page puts its own light into the aurora. Press a button on the panel to see what it does.</p>
+    <p class="lede"><a href="https://andrewdamelio.github.io/aurora-fm1/">Play it in your browser</a>, no FM-1 needed. An ambient machine that plays by itself and never quite repeats: pads move through chord progressions and keep returning to a motif, bells play phrases of it, and the piece drifts through sections and keys, over a drone and wind in a very large reverb. Every button opens a page of four knobs, and each page puts its own light into the aurora. Press a button on the panel to see what it does.</p>
     <div class="top">
       <div class="panel">
         <svg id="panel" viewBox="0 0 640 300" role="group" aria-label="The FM-1's panel: buttons open AURORA's pages"></svg>
@@ -96,7 +96,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
           <li>Turn <b>ALGORITHM</b> for another scene, <b>SELECT</b> for another scale, <b>PRESETS</b> for another root.</li>
           <li>Press a page button (<b>FX</b>, <b>ENV</b>, <b>EDIT</b>, <b>LFO</b>, <b>GLO</b>, <b>SEQ</b>) and turn <b>KNOB 1–4</b>; <b>HOME</b> brings back the sky alone.</li>
           <li>Play the keys; tap <b>SCL</b> to latch notes (HOLD) or strike bells (BELLS).</li>
-          <li><b>REC</b> freezes it, <b>ARP</b> starts the drums (hold it for their knobs), <b>SAVE</b> keeps it for next time.</li>
+          <li><b>REC</b> freezes it; on <b>ARP</b> turn LEVEL up for drums; <b>SAVE</b> keeps it for next time.</li>
         </ol>
       </div>
       <div class="view" aria-live="polite">
@@ -116,7 +116,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
 <section class="band" id="pages">
   <div class="wrap">
     <h2>The pages</h2>
-    <p class="note">KNOB 1 to KNOB 4 always turn the four controls of the page that is open; the screen shows their names along the bottom and a bar for each. Each knob runs 0 to 127. The drums' four are under ARP: hold it and turn.</p>
+    <p class="note">KNOB 1 to KNOB 4 always turn the four controls of the page that is open; the screen shows their names along the bottom and a bar for each. Each knob runs 0 to 127.</p>
     <div class="pages" id="pagelist"></div>
   </div>
 </section>
@@ -134,7 +134,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
         <tr><td>SCL</td><td>Tap: the keys' mode (PADS, HOLD, BELLS). Hold it and press a key: that key becomes the root.</td></tr>
         <tr><td>PLAY</td><td>The machine plays or waits. Waiting, the aurora sinks low; the keys still play.</td></tr>
         <tr><td>REC</td><td>Freeze: the reverb holds what is in it, for ever, and the sky turns to ice.</td></tr>
-        <tr><td>ARP</td><td>Drums. Tap: they ease in on a new pattern (heartbeat, rim, shaker, mallets on the chord), or stop; its light blinks the beat. Hold it and turn KNOB 1–4: TEMPO, LEVEL, BUSY, SWING.</td></tr>
+        <tr><td>ARP</td><td>The drums' page: TEMPO, LEVEL, BUSY, SWING. LEVEL up from 0 starts them, 0 stops them. Its light blinks the beat while they play.</td></tr>
         <tr><td>SAVE</td><td>Keeps everything (scene, scale, root, octave, key mode, drums on or off, all 32 knobs) as the power-on state. Save while it is quiet: writing the flash stops the sound for a moment.</td></tr>
         <tr><td>MASTER</td><td>The volume.</td></tr>
         <tr><td>MIDI in</td><td>Notes play the pads, as they come (not snapped to the scale).</td></tr>
@@ -165,7 +165,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
     <div class="grid3">
       <div class="card"><img src="screens/freeze.png" alt="The sky frozen: pale blue curtains, still icy water" loading="lazy"><h3>Freeze (REC)</h3><p>The reverb holds for ever. The curtains slow to a stop and turn pale blue, the water goes still under a sheet of ice with faint cracks, and sparks of frost come and go. FROZEN shows at the top right.</p></div>
       <div class="card"><img src="screens/hold.png" alt="Three pillars of light rising from the horizon" loading="lazy"><h3>Hold (SCL, then keys)</h3><p>Each latched note becomes a pillar of light rising from the horizon at its pitch, twinkling as it goes up, while it rings.</p></div>
-      <div class="card"><img src="screens/drums.png" alt="Rows of lights for the drum pattern over the aurora" loading="lazy"><h3>Drums (ARP)</h3><p>Each heartbeat makes the aurora pulse and reach lower, each rim flares a star (now and then a shooting star), the shaker makes stars twinkle. Hold ARP to see the pattern itself.</p></div>
+      <div class="card"><img src="screens/drums.png" alt="Rows of lights for the drum pattern over the aurora" loading="lazy"><h3>Drums (ARP)</h3><p>Each heartbeat makes the aurora pulse and reach lower, each rim flares a star (now and then a shooting star), the shaker makes stars twinkle. Open ARP to see the pattern itself.</p></div>
     </div>
   </div>
 </section>
@@ -183,15 +183,15 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
 <section class="band" id="browser" style="background:var(--bg2)">
   <div class="wrap">
     <h2>In the browser</h2>
-    <p>The same firmware runs in a browser on an emulated panel: open <code>web/dist/index.html</code>. Drag the knobs, press the buttons, or use the computer keyboard:</p>
+    <p>The same firmware runs in a browser on an emulated panel: <a href="https://andrewdamelio.github.io/aurora-fm1/">open it here</a>. Drag the knobs, press the buttons, or use the computer keyboard:</p>
     <table class="stack">
       <thead><tr><th>Keys</th><th>Does</th></tr></thead>
       <tbody>
         <tr><td><kbd>Z</kbd>–<kbd>/</kbd>, <kbd>S</kbd>–<kbd>'</kbd>, <kbd>Q</kbd>–<kbd>O</kbd></td><td>The 27 keys</td></tr>
-        <tr><td><kbd>1</kbd>–<kbd>7</kbd></td><td>The pages: sky, effects, pad shape, pad tone, motion, drone, machine</td></tr>
+        <tr><td><kbd>1</kbd>–<kbd>8</kbd></td><td>The pages: sky, effects, pad shape, pad tone, motion, drone, machine, drums</td></tr>
         <tr><td><kbd>Tab</kbd></td><td>SCL: the keys' mode</td></tr>
         <tr><td><kbd>←</kbd> <kbd>→</kbd> · <kbd>↑</kbd> <kbd>↓</kbd></td><td>Scene · scale</td></tr>
-        <tr><td><kbd>Space</kbd> · <kbd>Shift</kbd> · <kbd>Enter</kbd></td><td>Play · freeze · drums on or off</td></tr>
+        <tr><td><kbd>Space</kbd> · <kbd>Shift</kbd> · <kbd>Enter</kbd></td><td>Play · freeze · the drums' page</td></tr>
       </tbody>
     </table>
   </div>
@@ -247,10 +247,10 @@ const PAGES = [
         ["RANGE", "How high the machine wanders: from one to four octaves of the scale."],
         ["VOICES", "How many pad notes the machine plays at once: 1 to 6."],
         ["EVOLVE", "How much the piece changes over time. 0 plays as set. Higher: sections come more often (calm, bloom, night, sparkle, drift), each leaning density, brightness, bells, wind, drone and voices its way without moving your knobs; the motif changes; chords bloom; pads add sevenths; the drum pattern drifts; above ~70 the key moves now and then (NEW KEY shows on the screen)."]] },
-  { btn: "ARP", name: "Drums", img: "drums", held: true, sky: "Soft drums made for the haze: a low heartbeat, a brushed rim, a shaker and mallets that play the chord and the motif into the echo, all darkened by BRIGHT and deep in the reverb. Each step plays only as often as its chance, a little loose, so no two bars match; calm sections thin them; EVOLVE moves a step every four bars; they ease in when started. Hold ARP: the pattern as rows of lights (mallets, shaker, rim, heartbeat), the likelier steps brighter, the step playing in white.",
+  { btn: "ARP", name: "Drums", img: "drums", sky: "LEVEL up from 0 starts them on a new pattern, LEVEL at 0 stops them; turning BUSY makes a new pattern. Soft drums made for the haze: a low heartbeat, a brushed rim, a shaker and mallets that play the chord and the motif into the echo, all darkened by BRIGHT and deep in the reverb. Each step plays only as often as its chance, a little loose, so no two bars match; calm sections thin them; EVOLVE moves a step every four bars; they ease in when started. On screen: the pattern as rows of lights (mallets, shaker, rim, heartbeat), the likelier steps brighter, the step playing in white.",
     k: [["TEMPO", "60 to 140 BPM (72 to start, mostly in half time)."],
-        ["LEVEL", "How loud the drums are."],
-        ["BUSY", "How full the next pattern is: more shaker, ghost rims, mallets, a third heartbeat. It takes effect at the next tap."],
+        ["LEVEL", "How loud the drums are. 0 is off; up from 0 starts them on a new pattern."],
+        ["BUSY", "How full the pattern is: more shaker, ghost rims, mallets, a third heartbeat. Turning it makes a new pattern."],
         ["SWING", "How late the off-beats come."]] },
 ];
 const SCENES = [

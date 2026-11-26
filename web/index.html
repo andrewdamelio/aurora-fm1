@@ -160,6 +160,7 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--edge); border-radius: 
 
   <section class="notes">
     <p id="status">It plays by itself once it is on. Drag a knob up or down; what it changes shows on the screen.</p>
+    <p><a href="help.html">The guide</a>: every page, knob and button.</p>
     <p>The panel is the FM-1's own, at its real proportions: grey is what is printed on the device, green is what it does in AURORA. Every button does something; the knobs' names follow the page that is open. On a phone, turn it sideways, or use the phone layout: the same controls, bigger.</p>
     <dl>
       <dt>ALGORITHM</dt><dd>the scene</dd>
@@ -176,11 +177,11 @@ kbd { font: 600 11px var(--mono); border: 1px solid var(--edge); border-radius: 
       <dt>GLO · Drone</dt><dd>TONE · FIFTH · SUB · BREATH. Rings rising from the horizon</dd>
       <dt>SEQ · Machine</dt><dd>CHORDS · RANGE · VOICES · EVOLVE. The scale as a constellation</dd>
       <dt>SCL tap</dt><dd>the keys: PADS, HOLD (a key latches), BELLS</dd>
-      <dt>ARP · Drums</dt><dd>tap: drums on, with a new random pattern, or off · hold and turn the knobs: TEMPO · LEVEL · BUSY · SWING</dd>
+      <dt>ARP · Drums</dt><dd>TEMPO · LEVEL · BUSY · SWING. LEVEL up from 0 starts them, 0 stops them; BUSY makes a new pattern</dd>
       <dt>Play · Freeze</dt><dd>the machine plays or waits · the reverb and the sky turn to ice</dd>
       <dt>Save</dt><dd>keep the scene and settings for next time</dd>
     </dl>
-    <p class="desk">Computer keyboard: <kbd>Z</kbd>–<kbd>/</kbd> <kbd>S</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> the keys · <kbd>1</kbd>–<kbd>7</kbd> the pages · <kbd>Tab</kbd> SCL · <kbd>←</kbd> <kbd>→</kbd> scene · <kbd>↑</kbd> <kbd>↓</kbd> scale · <kbd>Space</kbd> play · <kbd>Shift</kbd> freeze · <kbd>Enter</kbd> drums</p>
+    <p class="desk">Computer keyboard: <kbd>Z</kbd>–<kbd>/</kbd> <kbd>S</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> the keys · <kbd>1</kbd>–<kbd>8</kbd> the pages · <kbd>Tab</kbd> SCL · <kbd>←</kbd> <kbd>→</kbd> scene · <kbd>↑</kbd> <kbd>↓</kbd> scale · <kbd>Space</kbd> play · <kbd>Shift</kbd> freeze · <kbd>Enter</kbd> the drums' page</p>
     <p>No sound on an iPhone? Turn the ring/silent switch to ring.</p>
     <p>AURORA is free software (GPL-3.0), built on <a href="https://github.com/GRiMMBIENT/grimm">GR!MM</a>'s platform, DSP and reverb, which stand on Felucca, Dinghy, SLOOP and X0X. The screen font is Terminus (SIL OFL 1.1). Unofficial firmware, not made or endorsed by M-VAVE.</p>
   </section>
@@ -197,7 +198,7 @@ const BTN = { OCT_DOWN: 0, OCT_UP: 1, FX: 2, SEL: 3, ENV: 4, LFO: 5, EDIT: 6, GL
 const ENC = { SELECT: 0, ALGORITHM: 1, KNOB1: 2, PRESETS: 6 };
 const ROWS = [["DENSITY", "BRIGHT", "SPACE", "DRIFT"], ["ECHO", "BELLS", "WIND", "DRONE"], ["ATTACK", "RELEASE", "LENGTH", "PADS"],
   ["WAVE", "DETUNE", "RESO", "SHIMMER"], ["RATE", "SWEEP", "WIDTH", "TREMOLO"], ["TONE", "FIFTH", "SUB", "BREATH"], ["CHORDS", "RANGE", "VOICES", "EVOLVE"], ["TEMPO", "LEVEL", "BUSY", "SWING"]];
-const PAGE_BTN = [BTN.HOME, BTN.FX, BTN.ENV, BTN.EDIT, BTN.LFO, BTN.GLO, BTN.SEQ];   // ROWS[i]: the page this button opens
+const PAGE_BTN = [BTN.HOME, BTN.FX, BTN.ENV, BTN.EDIT, BTN.LFO, BTN.GLO, BTN.SEQ, BTN.ARP];   // ROWS[i]: the page this button opens
 const PANEL = [   // label, what the FM-1 prints on that button, id
   ["SKY", "HOME", BTN.HOME], ["EFFECTS", "FX", BTN.FX], ["SHAPE", "ENV", BTN.ENV], ["TONE", "EDIT", BTN.EDIT],
   ["MOTION", "LFO", BTN.LFO], ["DRONE", "GLO", BTN.GLO], ["MACHINE", "SEQ", BTN.SEQ], ["KEYS", "SCL", BTN.SEL],
@@ -229,8 +230,8 @@ function drawScreen(fb) {                                    // RGB565
   ctx.putImageData(img, 0, 0);
 }
 let lastLitB = 0;
-function knobNames() {                                       // the page's knobs; ARP held: the drums'
-  const pg = btnMask & (1 << BTN.ARP) ? 7 : PAGE_BTN.findIndex((id) => lastLitB & (1 << id)), row = ROWS[pg < 0 ? 0 : pg];
+function knobNames() {                                       // the knobs of the page whose button is lit
+  const pg = PAGE_BTN.findIndex((id) => id !== BTN.ARP && lastLitB & (1 << id)), row = ROWS[pg < 0 ? 7 : pg];   // (none lit: the drums' page, its light blinking)
   knobLabs.forEach((el, i) => { el.textContent = row[i % 4]; });
 }
 function drawLights([litB, litK]) {
@@ -434,7 +435,7 @@ const KEYMAP = {};
 ["KeyQ", "KeyW", "KeyE", "KeyR", "KeyT", "KeyY", "KeyU", "KeyI", "KeyO"].forEach((c, i) => KEYMAP[c] = 18 + i);
 const HOT = { Space: () => tap(BTN.PLAY), ShiftLeft: () => tap(BTN.REC), ShiftRight: () => tap(BTN.REC), Enter: () => tap(BTN.ARP), Tab: () => tap(BTN.SEL),
               Digit1: () => tap(BTN.HOME), Digit2: () => tap(BTN.FX), Digit3: () => tap(BTN.ENV), Digit4: () => tap(BTN.EDIT),
-              Digit5: () => tap(BTN.LFO), Digit6: () => tap(BTN.GLO), Digit7: () => tap(BTN.SEQ),
+              Digit5: () => tap(BTN.LFO), Digit6: () => tap(BTN.GLO), Digit7: () => tap(BTN.SEQ), Digit8: () => tap(BTN.ARP),
               ArrowRight: () => send({ type: "enc", enc: ENC.ALGORITHM, n: 1 }), ArrowLeft: () => send({ type: "enc", enc: ENC.ALGORITHM, n: -1 }),
               ArrowUp: () => send({ type: "enc", enc: ENC.SELECT, n: 1 }), ArrowDown: () => send({ type: "enc", enc: ENC.SELECT, n: -1 }) };
 addEventListener("keydown", (e) => {

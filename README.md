@@ -4,7 +4,7 @@ Ambient firmware for the M-VAVE FM-1. It plays by itself and never quite repeats
 
 ![AURORA running in the browser](docs/web.png)
 
-**[The guide](docs/help.html)** covers every page, knob and button. To try it without an FM-1, open `web/dist/index.html`.
+**[Play it in your browser](https://andrewdamelio.github.io/aurora-fm1/)** (the real firmware, no FM-1 needed) · **[The guide](https://andrewdamelio.github.io/aurora-fm1/help.html)**: every page, knob and button.
 
 ## Controls
 
@@ -17,9 +17,9 @@ Ambient firmware for the M-VAVE FM-1. It plays by itself and never quite repeats
 | LFO | Motion | RATE, SWEEP, WIDTH, TREMOLO |
 | GLO | Drone | TONE, FIFTH, SUB, BREATH |
 | SEQ | Machine | CHORDS, RANGE, VOICES, EVOLVE |
-| ARP (hold) | Drums | TEMPO, LEVEL, BUSY, SWING |
+| ARP | Drums | TEMPO, LEVEL, BUSY, SWING |
 
-ALGORITHM picks the scene, SELECT the scale, PRESETS the root. Tap SCL to switch the keys between PADS, HOLD and BELLS. ARP turns the drums on or off, with a new pattern each time. PLAY starts or stops the machine, REC freezes the reverb and the sky, and SAVE keeps the current state for power-on.
+ALGORITHM picks the scene, SELECT the scale, PRESETS the root. Tap SCL to switch the keys between PADS, HOLD and BELLS. On the drums page, turn LEVEL up from 0 to start them and BUSY for a new pattern. PLAY starts or stops the machine, REC freezes the reverb and the sky, and SAVE keeps the current state for power-on.
 
 ## Install
 
@@ -34,6 +34,6 @@ Any FM-1 firmware can go back on over it. If the FM-1 ever gets stuck, the [Firm
 ## Build
 
 - **FM-1 package:** GitHub Actions builds it on every branch push, and a `vX.Y` tag publishes a release. To build it yourself, run `tools/build_fwsc.sh`.
-- **Browser version:** `GRIMM=/path/to/grimm BIN=/path/to/node_modules/.bin ./build_web.sh`
+- **Browser version:** `GRIMM=/path/to/grimm BIN=/path/to/node_modules/.bin ./build_web.sh`. Pushing to `main` deploys it, with the guide, to GitHub Pages.
 
 GPL-3.0. Built on GR!MM's platform, DSP and reverb, which in turn build on Felucca, Dinghy, SLOOP and X0X. Not made or endorsed by M-VAVE.
