@@ -1,10 +1,13 @@
 {
-  "what": "Generative ambient that plays by itself and never quite repeats: pads move through chords and return to a motif, bells play phrases of it, and the piece drifts through moods and keys over a drone, wind and a huge reverb, with soft optional drums. The screen is an aurora that answers every page.",
+  "what": "Generative ambient that plays by itself and never quite repeats: pads move through chords and return to a motif, bells play phrases of it, and the piece drifts through moods and keys over a drone, wind and a huge reverb. Play pads, bells or a real choir on the keys, under an aurora.",
   "author": "Andrew D'Amelio",
-  "kinds": ["groove", "synth"],
+  "kinds": [
+    "groove",
+    "synth"
+  ],
   "play": "https://andrewdamelio.github.io/aurora-fm1/web/dist/",
   "cheat": "https://andrewdamelio.github.io/aurora-fm1/docs/help.html",
   "image": "docs/card.png",
-  "sounds": "none",
+  "sounds": "licensed: VocalSet (Wilkins, Seetharaman, Wahl, Pardo, Northwestern University, 2018), CC BY 4.0",
   "color": "#6FF5A8"
 }

@@ -95,7 +95,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
           <li>Switch on: it starts playing by itself in the BOREAL scene.</li>
           <li>Turn <b>ALGORITHM</b> for another scene, <b>SELECT</b> for another scale, <b>PRESETS</b> for another root.</li>
           <li>Press a page button (<b>FX</b>, <b>ENV</b>, <b>EDIT</b>, <b>LFO</b>, <b>GLO</b>, <b>SEQ</b>) and turn <b>KNOB 1–4</b>; <b>HOME</b> brings back the sky alone.</li>
-          <li>Play the keys; tap <b>SCL</b> to latch notes (HOLD) or strike bells (BELLS).</li>
+          <li>Play the keys; tap <b>SCL</b> to latch notes (HOLD), strike bells (BELLS) or sing (CHOIR).</li>
           <li><b>REC</b> freezes it; on <b>ARP</b> turn LEVEL up for drums; <b>SAVE</b> keeps it for next time.</li>
         </ol>
       </div>
@@ -131,7 +131,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
         <tr><td>SELECT</td><td>The scale: Lydian, major, major pentatonic, suspended, Dorian, minor, minor pentatonic, Phrygian, Hirajoshi, whole tone, fifths.</td></tr>
         <tr><td>PRESETS</td><td>The root note, a semitone at a time. The drone slides to the new root.</td></tr>
         <tr><td>OCT− / OCT+</td><td>The register, one octave down or up. Both together: back to the middle.</td></tr>
-        <tr><td>SCL</td><td>Tap: the keys' mode (PADS, HOLD, BELLS). Hold it and press a key: that key becomes the root.</td></tr>
+        <tr><td>SCL</td><td>Tap: the keys' mode (PADS, HOLD, BELLS, CHOIR). Hold it and press a key: that key becomes the root.</td></tr>
         <tr><td>PLAY</td><td>The machine plays or waits. Waiting, the aurora sinks low; the keys still play.</td></tr>
         <tr><td>REC</td><td>Freeze: the reverb holds what is in it, for ever, and the sky turns to ice.</td></tr>
         <tr><td>ARP</td><td>The drums' page: TEMPO, LEVEL, BUSY, SWING. LEVEL up from 0 starts them, 0 stops them. Its light blinks the beat while they play.</td></tr>
@@ -146,13 +146,14 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
 <section class="band" id="keys">
   <div class="wrap">
     <h2>The keys</h2>
-    <p>The 27 keys run from F3 to G5, and every note is snapped to the scale. Tap SCL to move between three modes; the mode shows at the top of the screen, and SCL's light shows it too.</p>
+    <p>The 27 keys run from F3 to G5, and every note is snapped to the scale. Tap SCL to move between four modes; the mode shows at the top of the screen, and SCL's light shows it too.</p>
     <table class="stack">
       <thead><tr><th>Mode</th><th>A key</th><th>SCL light</th></tr></thead>
       <tbody>
         <tr><td>PADS</td><td>Plays a pad note for as long as it is held, with a third of the page's ATTACK and the full RELEASE.</td><td>Off</td></tr>
         <tr><td>HOLD</td><td>Latches its note: it rings until you press that key again. Held notes stand as pillars of light, and their keys stay lit. Leaving HOLD lets them all go.</td><td>On</td></tr>
         <tr><td>BELLS</td><td>Strikes a bell an octave up. The star nearest its note flares and a shooting star crosses.</td><td>Blinking</td></tr>
+        <tr><td>CHOIR</td><td>Sings the note, an octave down, for as long as the key is held: three real singers to a note, a little apart, each with a vibrato, men's voices below middle C and women's above, the vowel drifting through A E I O U, deep in the reverb. Up to four notes. A shaft of pale light comes down from the top of the sky where each note is.</td><td>Slow blink</td></tr>
       </tbody>
     </table>
   </div>
@@ -207,7 +208,7 @@ footer{color:var(--dim);font-size:13px;border-top:1px solid var(--edge)}
   </div>
 </section>
 
-<footer class="band"><div class="wrap">AURORA is free software (GPL-3.0), built on GR!MM's platform, DSP and reverb, which stand on Felucca, Dinghy, SLOOP and X0X. <a href="https://github.com/andrewdamelio/aurora-fm1">github.com/andrewdamelio/aurora-fm1</a></div></footer>
+<footer class="band"><div class="wrap">AURORA is free software (GPL-3.0), built on GR!MM's platform, DSP and reverb, which stand on Felucca, Dinghy, SLOOP and X0X. The choir is made from <a href="https://doi.org/10.5281/zenodo.1442513">VocalSet</a> (Wilkins, Seetharaman, Wahl, Pardo, Northwestern University, 2018; CC BY 4.0), via GR!MM. <a href="https://github.com/andrewdamelio/aurora-fm1">github.com/andrewdamelio/aurora-fm1</a></div></footer>
 
 <script>
 {
@@ -295,7 +296,7 @@ for (let i = 0; i < 16; i++) h += `<rect x="${28 + i * 37.2}" y="258" width="26"
 h += `<text class="lab g" x="480" y="216" text-anchor="middle">KEYS: PADS · HOLD · BELLS (SCL)</text>`;
 svg.innerHTML = h;
 
-const OTHER = { SCL: ["SCL", "Tap: the keys' mode, PADS, HOLD or BELLS. Hold it and press a key: that key is the root.", "hold"],
+const OTHER = { SCL: ["SCL", "Tap: the keys' mode, PADS, HOLD, BELLS or CHOIR. Hold it and press a key: that key is the root.", "hold"],
   SAVE: ["SAVE", "Keeps everything as the power-on state.", null], 
   PLAY: ["PLAY", "The machine plays or waits. Waiting, the aurora sinks low.", null], REC: ["REC: freeze", "The reverb holds for ever, and the sky turns to ice.", "freeze"],
   "OCT-": ["OCT−", "The register an octave down. With OCT+: the middle.", null], "OCT+": ["OCT+", "The register an octave up. With OCT−: the middle.", null] };

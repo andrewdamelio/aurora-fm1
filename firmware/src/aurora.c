@@ -19,8 +19,8 @@
  *
  *   ALGORITHM    the scene (its sound, its sky, its scale, its settings)      SELECT   the scale
  *   PRESETS      the root note                                                OCT-/+   the register (both: middle)
- *   keys         PADS: play pads, snapped to the scale; HOLD: a key latches its note; BELLS: strike bells
- *   SEL          tap: the keys' mode (PADS, HOLD, BELLS); held + a key: that key is the root
+ *   keys         PADS: play pads, snapped to the scale; HOLD: a key latches its note; BELLS: strike bells; CHOIR: sing
+ *   SEL          tap: the keys' mode (PADS, HOLD, BELLS, CHOIR); held + a key: that key is the root
  *   PLAY         the machine plays / waits (lit: playing)      REC    FREEZE: the reverb and the sky hold still (lit)
  *   SAVE         keep all this as the power-on state
  *   MIDI in      notes play the pads
@@ -30,6 +30,7 @@
 #define LV_COUNT(c, x, k) ((void)0)
 #include "dsp.c"
 #include "hall.c"
+#include "grimm_choir.h"                     /* the choir's singers (VocalSet, CC BY 4.0: see LICENSING.md) */
 
 /* ------------------------------------------------------------------ small things */
 static inline int32_t sin15(uint32_t ph)        /* a full cycle over 2^32 -> -32767 .. 32767 */
@@ -87,10 +88,10 @@ static const uint8_t P_DEF[NPARAM] = {
 enum { PG_HOME, PG_FX, PG_ENV, PG_EDIT, PG_LFO, PG_GLO, PG_SEQ, PG_RHY, NPAGE };
 static const uint8_t PAGE_BTN[NPAGE] = {BTN_HOME, BTN_FX, BTN_ENV, BTN_EDIT, BTN_LFO, BTN_GLO, BTN_SEQ, BTN_ARP};
 static const char *const PAGE_NAME[NPAGE] = {"SKY", "EFFECTS", "PAD SHAPE", "PAD TONE", "MOTION", "DRONE", "MACHINE", "DRUMS"};
-enum { KM_PADS, KM_HOLD, KM_BELLS, NKMODE };
-static const char *const KM_NAME[NKMODE] = {"KEYS: PADS", "KEYS: HOLD", "KEYS: BELLS"};
-static const char *const KM_SAY[NKMODE] = {"KEYS PLAY PADS", "KEYS HOLD NOTES", "KEYS RING BELLS"};
-static const char *const KM_HOW[NKMODE] = {"", "", ""};
+enum { KM_PADS, KM_HOLD, KM_BELLS, KM_CHOIR, NKMODE };
+static const char *const KM_NAME[NKMODE] = {"KEYS: PADS", "KEYS: HOLD", "KEYS: BELLS", "KEYS: CHOIR"};
+static const char *const KM_SAY[NKMODE] = {"KEYS PLAY PADS", "KEYS HOLD NOTES", "KEYS RING BELLS", "KEYS SING CHOIR"};
+static const char *const KM_HOW[NKMODE] = {"", "", "", ""};
 
 static volatile int32_t par[NPARAM];            /* 0 .. 127 */
 static int32_t md[NPARAM];                      /* (the audio's) how the section leans each knob (x 256) */
@@ -366,6 +367,97 @@ static void bell_render(bell_t *b)
     b->amp = a1 - (a1 >> b->kamp) - (a1 > 0);
     if (b->amp < 0) b->amp = 0;
     b->idx = idx - (idx >> 5);
+}
+
+/* the choir (the keys in CHOIR): real singers' single cycles (GR!MM's grimm_choir.h, from VocalSet: Wilkins,
+ * Seetharaman, Wahl, Pardo, Northwestern University, 2018, CC BY 4.0), three to a note, a little apart in pitch, each
+ * with its own vibrato; the men's voices low, the women's high; the vowel drifting slowly through A E I O U; deep in
+ * the reverb. Four notes at once. A cycle's size (256 .. 32 points: 64 .. 8 harmonics) as its pitch allows, so nothing
+ * folds over above ~20 kHz (as GR!MM's VOICE does) */
+#define NCH 4u
+#define CH_SING 3u
+#define CH_VOL 9000                             /* a note at full level (Q15) */
+static const int8_t CH_DET[CH_SING] = {-7, 0, 6};   /* each singer's pitch, cents */
+static const uint32_t CH_VIB[CH_SING] = {129000000u, 139000000u, 121000000u};   /* their vibratos: ~5.2, 5.6, 4.9 Hz */
+static const uint16_t CH_OFF[4] = {0, 256, 384, 448};   /* a cycle's sizes in CHOIR_T: 256, 128, 64, 32 */
+typedef struct { int32_t note, id, gate, env, a_prev, vpos, vdir, pan; uint32_t ph[CH_SING], vp[CH_SING], born; } ch_t;
+static ch_t chv[NCH];
+static volatile int32_t vis_ch_lvl[NCH], vis_ch_note[NCH];
+static void choir_on(int32_t note, int32_t id)
+{
+    ch_t *c = 0;
+    uint32_t k;
+    for (k = 0; k < NCH && !c; k++)
+        if (!chv[k].gate && !chv[k].env && !chv[k].a_prev) c = &chv[k];
+    for (k = 0; k < NCH && !c; k++)             /* else one letting go, else the oldest */
+        if (!chv[k].gate) c = &chv[k];
+    if (!c)
+        for (k = 0; k < NCH; k++)
+            if (!c || a_blk - chv[k].born > a_blk - c->born) c = &chv[k];
+    if (!c->a_prev) {
+        for (k = 0; k < CH_SING; k++) c->ph[k] = 0, c->vp[k] = arnd();
+        c->vpos = (int32_t)arnd_n(1024), c->vdir = arnd_n(2) ? 1 : -1;
+    }
+    c->note = clamp(note, 36, 84), c->id = id, c->gate = 1, c->born = a_blk;
+    c->pan = 60 + (int32_t)arnd_n(136);
+    vis_ch_note[c - chv] = c->note;
+}
+static void choir_off(int32_t id)
+{
+    uint32_t k;
+    for (k = 0; k < NCH; k++)
+        if (chv[k].gate && chv[k].id == id) chv[k].gate = 0;
+}
+static void choir_render(ch_t *c, uint32_t ci)
+{
+    struct { const int8_t *t0, *t1; uint32_t ph, inc, sh, sf, mk; } sg[CH_SING];
+    int32_t e, a0 = c->a_prev, a1, vi, mf, gl, gr;
+    uint32_t i, k, w, z;
+    if (c->gate) {
+        c->env += 975419 / 7;                   /* (~0.7 s to swell in) */
+        if (c->env > 1 << 24) c->env = 1 << 24;
+    } else {
+        c->env -= kb.rel;
+        if (c->env < 0) c->env = 0;
+    }
+    e = c->env >> 9;
+    a1 = (((e * e) >> 15) * CH_VOL) >> 15;
+    vis_ch_lvl[ci] = (a1 * 255) / CH_VOL;
+    if (!a1 && !a0) { c->a_prev = 0; return; }
+    c->vpos += c->vdir;                         /* the vowel: one every ~1.5 s, there and back */
+    if (c->vpos <= 0) c->vpos = 0, c->vdir = 1;
+    if (c->vpos >= 4 * 256) c->vpos = 4 * 256, c->vdir = -1;
+    vi = c->vpos >> 8, mf = c->vpos & 255;
+    if (vi >= 4) vi = 3, mf = 255;
+    w = c->note >= 60, z = c->note >= (w ? 66 : 54);   /* the women above middle C; each recorded at two notes */
+    for (k = 0; k < CH_SING; k++) {
+        const int8_t *t = CHOIR_T[w][k][z][0];
+        uint32_t b, lv;
+        c->vp[k] += CH_VIB[k];
+        b = cents_inc(c->note * 16, CH_DET[k] + ((sin15(c->vp[k]) * 9) >> 15), 0);
+        for (lv = 0; lv < 3u && (b >> 20) * (64u >> lv) > 1858u; lv++)
+            ;
+        sg[k].t0 = t + vi * CHOIR_LEN + CH_OFF[lv], sg[k].t1 = t + (vi + 1 < 5 ? vi + 1 : vi) * CHOIR_LEN + CH_OFF[lv];
+        sg[k].sh = 24u + lv, sg[k].sf = 16u + lv, sg[k].mk = (256u >> lv) - 1u, sg[k].ph = c->ph[k], sg[k].inc = b;
+    }
+    gl = SINE[256 - c->pan], gr = SINE[c->pan];
+    for (i = 0; i < VB; i++) {
+        int32_t acc = 0, a = a0 + (((a1 - a0) * (int32_t)i) >> 8), y;
+        for (k = 0; k < CH_SING; k++) {
+            uint32_t ph = sg[k].ph, j = ph >> sg[k].sh, j1 = (j + 1u) & sg[k].mk;
+            int32_t fr = (int32_t)(ph >> sg[k].sf & 255u), s0 = sg[k].t0[j], v = (s0 << 8) + (sg[k].t0[j1] - s0) * fr;
+            int32_t e0 = sg[k].t1[j], u = (e0 << 8) + (sg[k].t1[j1] - e0) * fr;
+            acc += v + (((u - v) * mf) >> 8);
+            sg[k].ph = ph + sg[k].inc;
+        }
+        y = ((((acc * 10923) >> 15)) * a) >> 15;   /* (a third each) */
+        bus_l[i] += (y * gl) >> 15;
+        bus_r[i] += (y * gr) >> 15;
+        bus_rev[i] += (y * 210) >> 8;
+        bus_dly[i] += (y * 24) >> 8;
+    }
+    for (k = 0; k < CH_SING; k++) c->ph[k] = sg[k].ph;
+    c->a_prev = a1;
 }
 
 /* the drone: the root, low: a sine, two saws behind a dark filter (TONE), its fifth and octave coming and going (FIFTH),
@@ -726,7 +818,10 @@ static void gen_tick(void)                      /* once a block */
         uint32_t e = evq[ev_r % 32u], id = e >> 16, k;
         int32_t note = (int32_t)(e >> 8 & 127u);
         ev_r = ev_r + 1u;
-        if (e & 2u) {
+        if (e & 4u) {                           /* (the choir) */
+            if (e & 1u) choir_on(note, (int32_t)id);
+            else choir_off((int32_t)id);
+        } else if (e & 2u) {
             if (e & 1u) bell_strike(note, 100, 2);
         } else if (e & 1u) {
             pad_start(pad_take(), note, (int32_t)id, 0, (atk10_of() + 2) / 3);
@@ -791,6 +886,7 @@ static void app_audio(int32_t *out, uint32_t n)
     gen_tick();
     for (k = 0; k < NV; k++) pad_render(&pv[k], k);
     for (k = 0; k < NB; k++) bell_render(&bell[k]);
+    for (k = 0; k < NCH; k++) choir_render(&chv[k], k);
     drone_render();
     wind_render();
     drums_render();
@@ -1259,6 +1355,23 @@ static void ov_strip(uint32_t y0, uint32_t now)  /* the page's light, the frozen
             }
         }
     }
+    for (k = 0; k < NCH; k++) {                 /* the choir: shafts of pale light down from the top, where its notes are */
+        int32_t lvl = vis_ch_lvl[k], cx, dx, yl;
+        if (lvl <= 6 || ys >= HZ) continue;
+        cx = note_x(vis_ch_note[k] + 12);
+        yl = ye > HZ ? HZ : ye;
+        for (y = ys; y < yl; y++) {
+            int32_t fall = 256 - y * 256 / HZ, sway = (sin15((uint32_t)y * 60000000u + v_t * 500000u + k * 0x40000000u) * 3) >> 15;
+            int32_t tw = 210 + (sin15((uint32_t)y * 90000000u + v_t * 700000u) >> 10);
+            for (dx = -7; dx <= 7; dx++) {
+                int32_t xx = cx + dx + sway, ad = dx < 0 ? -dx : dx, v;
+                if ((uint32_t)xx >= 240u || y >= HZ - tree_h[xx]) continue;
+                v = ((((lvl * fall) >> 8) * (8 - ad) * (8 - ad)) >> 6) * tw >> 8;
+                px_add(xx, y, y0, (v * (200 + (pal_now[1][0] >> 10))) >> 9, (v * (190 + (pal_now[1][1] >> 10))) >> 9,
+                       (v * (170 + (pal_now[1][2] >> 9))) >> 9);
+            }
+        }
+    }
     for (k = 0; k < NV; k++) {                  /* held (latched) notes: pillars of light from the horizon up */
         int32_t lvl = vis_lvl[k], cx, dx, yl;
         if (vis_kind[k] != 2 || lvl <= 8 || ys >= HZ) continue;
@@ -1589,7 +1702,7 @@ static void hud_status(uint32_t ms)
 
 static void app_main(void)
 {
-    uint32_t prev_keys = 0, k, t_led = 0, latched = 0, sel_used = 0, busy_t = 0;
+    uint32_t prev_keys = 0, k, t_led = 0, latched = 0, sel_used = 0, busy_t = 0, sung = 0;
     int32_t shift_seen = 0;
     int32_t key_note[27];
     set_t st;
@@ -1697,6 +1810,9 @@ static void app_main(void)
                     hud_msg("ROOT", NOTE_NAME[EROOT], 2600);
                 } else if (kmode == KM_BELLS) {
                     ev_put(k, note + 12, 3);
+                } else if (kmode == KM_CHOIR) {         /* (an octave down: men under middle C, women over it) */
+                    key_note[k] = note - 12, sung |= 1u << k;
+                    ev_put(k, note - 12, 5);
                 } else if (kmode == KM_HOLD) {
                     if (latched >> k & 1u) ev_put(64u + k, key_note[k], 0), latched &= ~(1u << k), key_note[k] = -1;
                     else key_note[k] = note, ev_put(64u + k, note, 1), latched |= 1u << k;
@@ -1705,7 +1821,8 @@ static void app_main(void)
                     ev_put(k, note, 1);
                 }
             }
-            if ((up >> k & 1u) && !(latched >> k & 1u) && key_note[k] >= 0) ev_put(k, key_note[k], 0), key_note[k] = -1;
+            if ((up >> k & 1u) && !(latched >> k & 1u) && key_note[k] >= 0)
+                ev_put(k, key_note[k], sung >> k & 1u ? 4u : 0u), key_note[k] = -1, sung &= ~(1u << k);
         }
         {                                       /* MIDI in: notes play the pads too (as they come: not snapped) */
             uint8_t s, d1, d2;
@@ -1726,12 +1843,19 @@ static void app_main(void)
                     while (kk > 26) kk -= 12;
                     lit |= 1u << kk;
                 }
+            for (k = 0; k < NCH; k++)               /* (and the choir's) */
+                if (vis_ch_lvl[k] > 24) {
+                    int32_t kk = vis_ch_note[k] + 12 - 53 - 12 * g_oct;
+                    while (kk < 0) kk += 12;
+                    while (kk > 26) kk -= 12;
+                    lit |= 1u << kk;
+                }
             for (k = 0; k < 27u; k++) fm1_led_key(KEY_LED(k), (int)(lit >> k & 1u));
             for (k = 0; k < NPAGE; k++) fm1_led_key(PAGE_BTN[k], page == k);
             fm1_led_key(BTN_PLAY, g_run);
             fm1_led_key(BTN_REC, g_freeze);
             fm1_led_key(BTN_ARP, g_drums ? vis_step >= 0 && (vis_step & 3) < 2 : page == PG_RHY);   /* (playing: it blinks the beat) */
-            fm1_led_key(BTN_SEL, (int)(fm1_in.buttons >> BTN_SEL & 1u) || (kmode == KM_HOLD) || (kmode == KM_BELLS && (now & 512u)));
+            fm1_led_key(BTN_SEL, (int)(fm1_in.buttons >> BTN_SEL & 1u) || (kmode == KM_HOLD) || (kmode == KM_BELLS && (now & 512u)) || (kmode == KM_CHOIR && (now & 1536u) != 0u));
         }
 
         /* the screen: a frame at most every FRAME_MS, a strip at a time (every third millisecond at most: the rest
